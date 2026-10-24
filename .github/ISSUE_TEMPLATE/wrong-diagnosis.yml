@@ -1,0 +1,29 @@
+name: Wrong or missing diagnosis
+description: WhyLag blamed the wrong thing, or found nothing although there was a problem.
+labels: [diagnosis]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you notice (stutter, freeze, lag) and what was the real cause, if you know it?
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: WhyLag report
+      description: Use "Copy report" in WhyLag and paste it here. User and computer names are removed automatically – please check anyway.
+      render: markdown
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      placeholder: e.g. Ryzen 7 7800X3D, RX 7900 XTX, 32 GB, Wi-Fi
+  - type: input
+    id: version
+    attributes:
+      label: WhyLag version
+      placeholder: "0.1.0"

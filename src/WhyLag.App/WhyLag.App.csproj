@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>WhyLag.App</RootNamespace>
+    <AssemblyName>WhyLag</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\whylag.ico</ApplicationIcon>
+    <!-- WPF's Fluent theme (ThemeMode) is marked experimental in .NET 10. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WPF and WinForms share type names; only WPF namespaces are imported implicitly. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WhyLag.Core\WhyLag.Core.csproj" />
+    <ProjectReference Include="..\WhyLag.Collectors\WhyLag.Collectors.csproj" />
+    <ProjectReference Include="..\WhyLag.AI\WhyLag.AI.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WhyLag.AI/WhyLag.AI.csproj" />
+    <Project Path="src/WhyLag.App/WhyLag.App.csproj" />
+    <Project Path="src/WhyLag.Cli/WhyLag.Cli.csproj" />
+    <Project Path="src/WhyLag.Collectors/WhyLag.Collectors.csproj" />
+    <Project Path="src/WhyLag.Core/WhyLag.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WhyLag.AI.Tests/WhyLag.AI.Tests.csproj" />
+    <Project Path="tests/WhyLag.Core.Tests/WhyLag.Core.Tests.csproj" />
+  </Folder>
+</Solution>

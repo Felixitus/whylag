@@ -1,0 +1,19 @@
+# Build output
+bin/
+obj/
+artifacts/
+publish/
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+TestResults/
+*.binlog
+
+# Local data that must never be committed
+*.incident.json
+config.local.json
+*.pfx
+*.snk
+.env

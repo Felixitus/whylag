@@ -1,0 +1,20 @@
+name: Idea for a rule or data source
+description: A known cause of stutter or lag that WhyLag should recognise.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: cause
+    attributes:
+      label: Cause
+      description: What causes the problem, and how would someone notice it?
+    validations:
+      required: true
+  - type: textarea
+    id: signal
+    attributes:
+      label: Measurable signal
+      description: Which counter, event ID or API shows it? Links to documentation help a lot.
+  - type: textarea
+    id: advice
+    attributes:
+      label: Safe advice for users

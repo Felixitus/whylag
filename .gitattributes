@@ -1,0 +1,4 @@
+# Same line endings on every OS, matching .editorconfig
+* text=auto eol=lf
+*.png binary
+*.ico binary

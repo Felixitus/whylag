@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore WhyLag.slnx
+
+      - name: Build
+        run: dotnet build WhyLag.slnx --configuration Release --no-restore -warnaserror
+
+      - name: Test
+        run: dotnet test WhyLag.slnx --configuration Release --no-build --logger "trx;LogFileName=results.trx"
+
+      - name: Check formatting
+        run: dotnet format WhyLag.slnx --verify-no-changes --no-restore
+
+      - name: Publish portable build
+        run: ./build/publish.ps1 -Configuration Release
+        shell: pwsh
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build installer
+        run: ./build/build-installer.ps1
+        shell: pwsh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whylag-packages
+          path: |
+            artifacts/*.zip
+            artifacts/*-setup.exe

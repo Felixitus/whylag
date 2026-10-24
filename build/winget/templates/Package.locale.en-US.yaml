@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json
+PackageIdentifier: {{Id}}
+PackageVersion: {{Version}}
+PackageLocale: en-US
+Publisher: WhyLag contributors
+PublisherUrl: {{RepoUrl}}
+PublisherSupportUrl: {{RepoUrl}}/issues
+PrivacyUrl: {{RepoUrl}}/blob/main/docs/privacy.md
+PackageName: WhyLag
+PackageUrl: {{RepoUrl}}
+License: Apache-2.0
+LicenseUrl: {{RepoUrl}}/blob/main/LICENSE
+ShortDescription: Press a key when your PC stutters – WhyLag shows what happened in the seconds before, with evidence.
+Description: |-
+  WhyLag is a local flight recorder for stutters, freezes and lag on Windows. It keeps a short rolling history of
+  CPU, disk, memory, GPU, frame times, Wi-Fi and network latency in memory. When something lags, press a hotkey and
+  WhyLag correlates what happened with transparent rules and shows the measured evidence. Optional plain-language
+  explanations use a local AI model through Ollama. No telemetry, no admin rights.
+Moniker: whylag
+Tags:
+  - diagnostics
+  - performance
+  - stutter
+  - lag
+  - latency
+  - gaming
+  - frametime
+  - ollama
+  - privacy
+ReleaseNotesUrl: {{RepoUrl}}/blob/main/CHANGELOG.md
+ManifestType: defaultLocale
+ManifestVersion: 1.9.0

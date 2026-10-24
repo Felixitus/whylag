@@ -1,0 +1,69 @@
+﻿<Application x:Class="WhyLag.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WhyLag.App"
+             ShutdownMode="OnExplicitShutdown"
+             ThemeMode="System">
+    <!-- ThemeMode="System": WPF's built-in Fluent theme (Windows 11 look, follows light/dark mode). -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <FontFamily x:Key="Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+            <local:CategoryBrushConverter x:Key="CategoryBrush"/>
+            <local:CategoryBrushConverter x:Key="CategorySoftBrush" Opacity="0.14"/>
+
+            <Style x:Key="Card" TargetType="Border">
+                <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="20,16"/>
+                <Setter Property="Margin" Value="0,0,0,12"/>
+            </Style>
+
+            <Style x:Key="Display" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="26"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            </Style>
+            <Style x:Key="Title" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="20"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            </Style>
+            <Style x:Key="Subtitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="15"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            </Style>
+            <Style x:Key="Body" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="LineHeight" Value="21"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            </Style>
+            <Style x:Key="Caption" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+            </Style>
+            <Style x:Key="Overline" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}"/>
+            </Style>
+            <Style x:Key="Icon" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource Icons}"/>
+                <Setter Property="FontSize" Value="16"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            <Style x:Key="Chip" TargetType="Border">
+                <Setter Property="CornerRadius" Value="10"/>
+                <Setter Property="Padding" Value="8,2"/>
+                <Setter Property="Margin" Value="0,0,6,0"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

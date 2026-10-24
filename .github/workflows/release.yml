@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check tag matches version
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version
+          if ("v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match version $version" }
+
+      - name: Test
+        run: dotnet test WhyLag.slnx --configuration Release
+
+      - name: Publish
+        shell: pwsh
+        run: ./build/publish.ps1
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        run: ./build/build-installer.ps1
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts -File -Include *.exe, *.zip -Recurse -Depth 0 |
+            ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+            Set-Content artifacts/SHA256SUMS.txt
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release create "${{ github.ref_name }}" --draft --generate-notes --title "WhyLag ${{ github.ref_name }}" `
+            (Get-ChildItem artifacts/*-setup.exe).FullName (Get-ChildItem artifacts/*-portable.zip).FullName artifacts/SHA256SUMS.txt
+
+      - name: winget manifests
+        shell: pwsh
+        run: ./build/winget/New-WingetManifest.ps1 -Owner "${{ github.repository_owner }}" -Repository "${{ github.event.repository.name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifests
+          path: artifacts/winget

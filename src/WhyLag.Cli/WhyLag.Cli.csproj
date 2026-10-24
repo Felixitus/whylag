@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>WhyLag.Cli</RootNamespace>
+    <AssemblyName>whylag-cli</AssemblyName>
+    <ApplicationIcon>..\..\assets\whylag.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WhyLag.Core\WhyLag.Core.csproj" />
+    <ProjectReference Include="..\WhyLag.Collectors\WhyLag.Collectors.csproj" />
+    <ProjectReference Include="..\WhyLag.AI\WhyLag.AI.csproj" />
+  </ItemGroup>
+
+</Project>

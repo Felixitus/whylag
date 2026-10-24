@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>0.1.0</Version>
+    <Authors>WhyLag contributors</Authors>
+    <Company>WhyLag</Company>
+    <Product>WhyLag</Product>
+    <Copyright>Copyright (c) WhyLag contributors</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <SatelliteResourceLanguages>en;de</SatelliteResourceLanguages>
+  </PropertyGroup>
+</Project>

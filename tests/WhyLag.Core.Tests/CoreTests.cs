@@ -69,6 +69,22 @@ public class SpikeDetectorTests
         Assert.Equal(MetricKeys.FramesMaxMs, detector.Feed(Frame(40, 180))?.Metric);
     }
 
+    [Theory]
+    [InlineData("brave")]
+    [InlineData("webwallpaper64")]
+    public void Hitches_in_non_games_do_not_trigger(string app)
+    {
+        var detector = new SpikeDetector();
+        for (var i = 0; i < 41; i++)
+        {
+            var t = new Tick { Timestamp = TestData.Start.AddSeconds(i), FrameApp = app };
+            t.Set(MetricKeys.FramesFps, 60);
+            t.Set(MetricKeys.FramesMedianMs, 16);
+            t.Set(MetricKeys.FramesMaxMs, i == 40 ? 900 : 20);
+            Assert.Null(detector.Feed(t));
+        }
+    }
+
     [Fact]
     public void Two_lost_pings_in_a_row_trigger()
     {

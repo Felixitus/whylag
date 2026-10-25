@@ -1,4 +1,4 @@
-; Inno Setup script for WhyLag. Build with build/build-installer.ps1 after build/publish.ps1.
+﻿; Inno Setup script for WhyLag. Build with build/build-installer.ps1 after build/publish.ps1.
 ; Per-user installation: no administrator rights, nothing outside the user's profile.
 
 #ifndef AppVersion
@@ -38,14 +38,22 @@ VersionInfoVersion={#AppVersion}
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
+Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
+Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [CustomMessages]
 en.AutoStart=Start WhyLag when I sign in to Windows (recommended – it can only explain lags it has recorded)
 de.AutoStart=WhyLag bei der Windows-Anmeldung starten (empfohlen – es kann nur aufgezeichnete Ruckler erklären)
+fr.AutoStart=Démarrer WhyLag à l'ouverture de session Windows (recommandé – il ne peut expliquer que les saccades enregistrées)
+es.AutoStart=Iniciar WhyLag al iniciar sesión en Windows (recomendado: solo puede explicar los tirones que ha grabado)
 en.DeleteData=Also delete WhyLag's saved incidents and settings?%n%n%1
 de.DeleteData=Auch die gespeicherten Vorfälle und Einstellungen von WhyLag löschen?%n%n%1
+fr.DeleteData=Supprimer aussi les incidents et paramètres enregistrés par WhyLag ?%n%n%1
+es.DeleteData=¿Eliminar también los incidentes y ajustes guardados de WhyLag?%n%n%1
 en.Launch=Start WhyLag now
 de.Launch=WhyLag jetzt starten
+fr.Launch=Lancer WhyLag maintenant
+es.Launch=Iniciar WhyLag ahora
 
 [Tasks]
 Name: "autostart"; Description: "{cm:AutoStart}"

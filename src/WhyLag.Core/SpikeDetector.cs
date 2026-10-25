@@ -24,7 +24,8 @@ public sealed class SpikeDetector
     {
         "brave", "chrome", "msedge", "firefox", "opera", "vivaldi", "arc", "msedgewebview2", "discord", "teams", "ms-teams",
         "slack", "zoom", "spotify", "vlc", "mpc-hc64", "potplayermini64", "obs64", "explorer", "code", "devenv",
-        "whatsapp", "telegram", "steamwebhelper", "epicgameslauncher", "battle.net",
+        "whatsapp", "telegram", "steamwebhelper", "epicgameslauncher", "battle.net", "webwallpaper64", "wallpaper64",
+        "wallpaper32", "lively", "rainmeter",
     };
 
     public SpikeSignal? Feed(Tick tick)

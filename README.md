@@ -2,9 +2,11 @@
 
 **Press a key when your PC stutters – WhyLag shows what happened in the seconds before, with evidence.**
 
-Local-first · no telemetry · no admin rights · works without AI · English and German
+Local-first · no telemetry · no admin rights · works without AI · English, German, French, Spanish
 
 ![WhyLag report](docs/img/report.png)
+
+![Live overview](docs/img/live.png)
 
 ## Why
 

@@ -35,7 +35,9 @@ public partial class App : Application
     {
         base.OnStartup(e);
         Settings = SettingsStore.Load();
-        Loc.SetLanguage(Settings.Language);
+        // "--lang <code>" overrides the language for this run without changing the settings (e.g. for screenshots).
+        var langArg = Array.IndexOf(e.Args, "--lang");
+        Loc.SetLanguage(langArg >= 0 && langArg + 1 < e.Args.Length ? e.Args[langArg + 1] : Settings.Language);
 
         if (e.Args.FirstOrDefault() == LatencyHelperHost.Argument)
         {

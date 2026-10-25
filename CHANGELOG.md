@@ -13,5 +13,5 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Ve
 - 16 rules with evidence, automatic detection of stalls, game hitches and network spikes.
 - Recurring-pattern view with typical hour and weekday.
 - Optional local AI explanations via Ollama with evidence validation; cloud models refused.
-- WPF Fluent UI (light/dark) with live overview, timeline, KPI tiles; English and German.
+- WPF Fluent UI (light/dark) with live overview, timeline, KPI tiles; English, German, French and Spanish.
 - Per-user installer, portable ZIP, winget manifest generator, CI and release workflows.

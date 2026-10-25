@@ -24,6 +24,12 @@ public static class ReportBuilder
         sb.AppendLine($"- WhyLag {incident.AppVersion}");
         sb.AppendLine();
 
+        if (!string.IsNullOrWhiteSpace(incident.Note))
+        {
+            sb.AppendLine($"> **{T("report.note")}:** {incident.Note.ReplaceLineEndings(" ")}");
+            sb.AppendLine();
+        }
+
         if (incident.Findings.Count == 0)
         {
             sb.AppendLine($"## {T("report.none.title")}");

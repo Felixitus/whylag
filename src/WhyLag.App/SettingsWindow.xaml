@@ -85,6 +85,9 @@
                                 <Button x:Name="PresentMonDownload" Padding="12,6" Margin="0,0,8,8" Click="PresentMonDownload_Click"/>
                                 <Button x:Name="PresentMonPermission" Content="{local:Tr set.frames.permission}" Padding="12,6" Margin="0,0,8,8" Click="PresentMonPermission_Click"/>
                             </WrapPanel>
+                            <TextBlock Text="{local:Tr set.ignored}" Margin="0,8,0,4"/>
+                            <TextBox x:Name="IgnoredApps" AutomationProperties.Name="{local:Tr set.ignored}"/>
+                            <TextBlock Text="{local:Tr set.ignored.tip}" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </DockPanel>
                 </Border>

@@ -26,6 +26,12 @@ public partial class App : Application
     public MachineInfo Machine { get; private set; } = new();
     public string? HotkeyError { get; private set; }
 
+    /// <summary>True once WhyLag is shutting down; windows and dialogs must not touch the app state anymore.</summary>
+    public bool IsExiting { get; private set; }
+
+    /// <summary>The running app, or null while it starts or after it shut down.</summary>
+    public static App? Instance => Application.Current as App;
+
     public static new App Current => (App)Application.Current;
 
     /// <summary>Raised on the UI thread when a new incident was saved.</summary>
@@ -69,8 +75,9 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) =>
         {
             Log(args.Exception);
-            MessageBox.Show(T("app.error", args.Exception.Message, AppPaths.LogsDir), "WhyLag");
             args.Handled = true;
+            if (IsExiting) return; // errors while closing are logged, but nobody needs a dialog for them
+            MessageBox.Show(T("app.error", args.Exception.Message, AppPaths.LogsDir), "WhyLag");
         };
 
         Machine = HardwareInfo.Machine();
@@ -88,7 +95,9 @@ public partial class App : Application
     private void CreateTray()
     {
         _tray?.Dispose();
-        _tray = new TrayIcon(ShowMain, () => CaptureNow(TriggerKind.Manual), paused => { if (Recorder is not null) Recorder.Paused = paused; }, ShowSettings, ExitApp);
+        _tray = new TrayIcon(ShowMain, () => CaptureNow(TriggerKind.Manual), paused => { if (Recorder is not null) Recorder.Paused = paused; },
+            snoozed => { if (Recorder is not null) Recorder.AutoDetectPausedUntil = snoozed ? DateTimeOffset.Now.AddHours(1) : default; },
+            ShowSettings, ExitApp);
     }
 
     /// <summary>
@@ -115,6 +124,15 @@ public partial class App : Application
         if (_tray is not null) _tray.Tooltip = HotkeyError is null ? T("tray.tooltip", settings.Hotkey) : T("tray.tooltip.nohotkey");
     }
 
+    /// <summary>Changes and saves a setting that does not need a recorder restart (e.g. ignored apps).</summary>
+    public void UpdateSettings(Action<WhyLagSettings> change)
+    {
+        var copy = System.Text.Json.JsonSerializer.Deserialize<WhyLagSettings>(System.Text.Json.JsonSerializer.Serialize(Settings, Json.Options), Json.Options)!;
+        change(copy);
+        SettingsStore.Save(copy);
+        ApplySettings(copy, restartRecorder: false);
+    }
+
     private static bool NeedsRecorderRestart(WhyLagSettings a, WhyLagSettings b) =>
         a.BufferMinutes != b.BufferMinutes || a.PingEnabled != b.PingEnabled || a.PingTarget != b.PingTarget
         || a.FrameTimesEnabled != b.FrameTimesEnabled || a.DriverLatencyHelper != b.DriverLatencyHelper;
@@ -137,6 +155,7 @@ public partial class App : Application
 
     private void OnIncident(Incident incident)
     {
+        if (IsExiting) return;
         IncidentAdded?.Invoke(incident);
         var headline = incident.Findings.FirstOrDefault()?.Title ?? T("app.incident.none");
         var title = incident.Trigger == TriggerKind.Automatic ? T("app.incident.auto") : T("app.incident.manual");
@@ -168,7 +187,7 @@ public partial class App : Application
     public void ShowSettings()
     {
         var dialog = new SettingsWindow(Settings) { Owner = _window?.IsVisible == true ? _window : null };
-        if (dialog.ShowDialog() != true) return;
+        if (dialog.ShowDialog() != true || IsExiting) return;
 
         var old = Settings;
         SettingsStore.Save(dialog.Result);
@@ -193,6 +212,10 @@ public partial class App : Application
 
     private void ExitApp()
     {
+        if (IsExiting) return;
+        IsExiting = true;
+        // Close open dialogs first so that their callers return before the app state is torn down.
+        foreach (var window in Windows.OfType<Window>().Where(w => w != _window).ToList()) window.Close();
         _window?.Close();
         Shutdown();
     }

@@ -26,6 +26,11 @@ public sealed record KpiView(string Label, string Value, string Unit, string Not
 
 public sealed record AiItemView(string Header, string Evidence, string Text, List<string> Steps, FindingCategory? Category);
 
+public sealed record IncidentRow(string Id, DateTimeOffset When, string WhenText, FindingCategory? Category, string CategoryText,
+    string Cause, string App, string Trigger, int Findings, string Flags);
+
+public sealed record EventRow(string Time, string Level, string Source, int Id, string Message);
+
 public sealed record PatternView(string Title, FindingCategory Category, string CountText, string Range, string When,
     int[] ByHour, int[] ByWeekday, string[] HourLabels, string[] WeekdayLabels, string LatestId);
 
@@ -38,6 +43,9 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _explainCts;
 
     private static App Host => App.Current;
+
+    /// <summary>False while WhyLag is shutting down; UI callbacks then do nothing.</summary>
+    private bool Alive => App.Instance is { IsExiting: false } && IsLoaded;
 
     public MainWindow()
     {
@@ -62,7 +70,7 @@ public partial class MainWindow : Window
                 t => t.Get(MetricKeys.WifiRssi) is { } rssi ? T("tile.wifi.note", rssi, Stats.Round(t.Get(MetricKeys.WifiRxMbps) ?? 0)) : null),
             new LiveTile(T("tile.retrans"), MetricKeys.TcpRetransPerSec, "/s", FindingCategory.Network, 10),
             new LiveTile(T("tile.dpc"), MetricKeys.DpcTimePct, "%", FindingCategory.System, 10,
-                t => t.Get(MetricKeys.DpcMaxUs) is { } us ? T("tile.dpc.note", Stats.Round(us), t.Drivers.FirstOrDefault()?.Driver ?? "–") : null),
+                t => t.Get(MetricKeys.DpcMaxUs) is { } us ? T("tile.dpc.note", Stats.Round(us), t.Drivers.FirstOrDefault()?.Driver ?? "â€“") : null),
         ];
         foreach (var tile in _tiles) LiveTiles.Children.Add(tile);
 
@@ -75,6 +83,12 @@ public partial class MainWindow : Window
         };
         _timer.Tick += (_, _) => RefreshStatus();
         _timer.Start();
+
+        var categories = new Dictionary<string, string> { [""] = T("ui.table.allcategories") };
+        foreach (var c in Enum.GetValues<FindingCategory>()) categories[c.ToString()] = Palette.Label(c);
+        CategoryFilter.ItemsSource = categories;
+        CategoryFilter.SelectedValue = "";
+        PreviewKeyDown += Window_PreviewKeyDown;
 
         LoadList();
         RefreshStatus();
@@ -89,6 +103,7 @@ public partial class MainWindow : Window
 
     public void RefreshStatus()
     {
+        if (!Alive) return;
         var s = Host.Settings;
         HotkeyHint.Text = Host.HotkeyError ?? T("ui.hotkeyhint", s.Hotkey);
         HowTo.Text = T("ui.howto", s.Hotkey) + " " + (s.AutoDetect ? T("ui.howto.auto") : T("ui.howto.autooff"));
@@ -141,13 +156,14 @@ public partial class MainWindow : Window
 
     private void IncidentList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_current is not null) NoteBox_LostFocus(this, new RoutedEventArgs()); // keep an unsaved note
         _explainCts?.Cancel();
         if (IncidentList.SelectedItem is IncidentListItem item && Host.Store.Load(item.Id) is { } incident) Show(incident);
     }
 
     private void ShowView(UIElement view)
     {
-        foreach (var v in new UIElement[] { LiveView, PatternsView, ReportView }) v.Visibility = v == view ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var v in new UIElement[] { LiveView, PatternsView, ReportView, TableView }) v.Visibility = v == view ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Live_Click(object sender, RoutedEventArgs e) => ShowLive();
@@ -177,6 +193,99 @@ public partial class MainWindow : Window
         NoPatterns.Visibility = patterns.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private List<IncidentRow> _rows = new();
+
+    private void Table_Click(object sender, RoutedEventArgs e)
+    {
+        _current = null;
+        IncidentList.SelectedItem = null;
+        ShowView(TableView);
+        _rows = Host.Store.LoadAll().Select(ToRow).ToList();
+        ApplyTableFilter();
+    }
+
+    private static IncidentRow ToRow(Incident i)
+    {
+        var top = i.Findings.FirstOrDefault();
+        var local = i.TriggeredAt.ToLocalTime();
+        var flags = (i.Explanation is null ? "" : "AI ") + (string.IsNullOrWhiteSpace(i.Note) ? "" : "âœŽ");
+        return new IncidentRow(i.Id, local, local.ToString("d MMM, HH:mm:ss", Culture), top?.Category,
+            top is null ? "â€“" : Palette.Label(top.Category), top?.Title ?? T("report.none.title"),
+            i.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess ?? "â€“",
+            i.Id.EndsWith("-demo", StringComparison.Ordinal) ? T("trigger.short.demo") : T($"trigger.short.{i.Trigger}"),
+            i.Findings.Count, flags.Trim());
+    }
+
+    private void TableFilter_Changed(object sender, EventArgs e) => ApplyTableFilter();
+
+    private void ApplyTableFilter()
+    {
+        if (!IsLoaded && _rows.Count == 0) return;
+        var text = TableSearch.Text.Trim();
+        var category = CategoryFilter.SelectedValue as string ?? "";
+        var rows = _rows.Where(r =>
+            (category == "" || r.Category?.ToString() == category)
+            && (text.Length == 0 || r.Cause.Contains(text, StringComparison.CurrentCultureIgnoreCase)
+                                 || r.App.Contains(text, StringComparison.CurrentCultureIgnoreCase))).ToList();
+        IncidentTable.ItemsSource = rows;
+        TableSummary.Text = T("ui.table.summary", rows.Count, _rows.Count);
+    }
+
+    private void IncidentTable_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        DeleteSelectedButton.IsEnabled = IncidentTable.SelectedItems.Count > 0;
+
+    private void IncidentTable_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (IncidentTable.SelectedItem is IncidentRow row) Select(row.Id);
+    }
+
+    private void IncidentTable_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Delete) DeleteSelected_Click(sender, e);
+        else if (e.Key == System.Windows.Input.Key.Enter && IncidentTable.SelectedItem is IncidentRow row)
+        {
+            Select(row.Id);
+            e.Handled = true;
+        }
+    }
+
+    private void DeleteSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = IncidentTable.SelectedItems.OfType<IncidentRow>().ToList();
+        if (selected.Count == 0) return;
+        if (MessageBox.Show(this, T("ui.table.deleteconfirm", selected.Count), "WhyLag", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        foreach (var row in selected)
+        {
+            Host.Store.Delete(row.Id);
+            if (_items.FirstOrDefault(i => i.Id == row.Id) is { } item) _items.Remove(item);
+        }
+        UpdateCount();
+        _rows = _rows.Except(selected).ToList();
+        ApplyTableFilter();
+    }
+
+    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (System.Windows.Input.Keyboard.FocusedElement is TextBox) return;
+        var ctrl = System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control);
+        switch (e.Key)
+        {
+            case System.Windows.Input.Key.F5:
+                LoadList();
+                if (TableView.Visibility == Visibility.Visible) Table_Click(this, e);
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.Delete when ReportView.Visibility == Visibility.Visible:
+                Delete_Click(this, e);
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.C when ctrl && ReportView.Visibility == Visibility.Visible:
+                Copy_Click(this, e);
+                e.Handled = true;
+                break;
+        }
+    }
+
     private void OpenPatternIncident_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string id }) Select(id);
@@ -193,13 +302,13 @@ public partial class MainWindow : Window
         HeroChip.Background = Palette.Brush(color, 0.16);
         HeroChipText.Foreground = Palette.Brush(color);
         HeroChipText.Text = top is null ? T("ui.hero.none") : T("ui.hero.likely", Palette.Label(top.Category));
-        ReportWhen.Text = incident.TriggeredAt.ToLocalTime().ToString("D", Culture) + " · " + incident.TriggeredAt.ToLocalTime().ToString("HH:mm:ss", Culture);
+        ReportWhen.Text = incident.TriggeredAt.ToLocalTime().ToString("D", Culture) + " Â· " + incident.TriggeredAt.ToLocalTime().ToString("HH:mm:ss", Culture);
         ReportTitle.Text = top?.Title ?? T("report.none.title");
 
         var fg = incident.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess;
         ReportSubtitle.Text = ReportBuilder.TriggerText(incident)
-                              + (fg is null ? "" : " · " + T("ui.infront", fg))
-                              + " · " + T("ui.recorded", incident.Ticks.Count, incident.Findings.Count);
+                              + (fg is null ? "" : " Â· " + T("ui.infront", fg))
+                              + " Â· " + T("ui.recorded", incident.Ticks.Count, incident.Findings.Count);
 
         Kpis.ItemsSource = BuildKpis(incident);
         Chart.Incident = incident;
@@ -212,7 +321,40 @@ public partial class MainWindow : Window
                 f.Evidence.Select(e => new EvidenceRow(e.Id, e.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture), e.Description)).ToList(),
                 f.Checks)).ToList();
 
+        EventsTable.ItemsSource = incident.Events.OrderBy(ev => ev.Timestamp).Select(ev => new EventRow(
+            ev.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture), T($"level.{ev.Level}"), ev.Provider, ev.EventId,
+            ev.Message.ReplaceLineEndings(" "))).ToList();
+        EventsTable.Visibility = incident.Events.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        NoEvents.Visibility = incident.Events.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EventsCount.Text = T("ui.events.count", incident.Events.Count);
+        NoteBox.Text = incident.Note ?? "";
+
+        // Offer to ignore an app whose hitches started this incident (e.g. a browser or a wallpaper engine).
+        var frameApp = incident.Findings.FirstOrDefault(f => f.Category == FindingCategory.Frames)?.Subject
+                       ?? (incident.Trigger == TriggerKind.Automatic ? incident.Ticks.LastOrDefault(t => t.FrameApp is not null)?.FrameApp : null);
+        IgnoreAppButton.Tag = frameApp;
+        IgnoreAppButton.Visibility = frameApp is null || Host.Settings.IgnoredApps.Contains(frameApp, StringComparer.OrdinalIgnoreCase)
+            ? Visibility.Collapsed : Visibility.Visible;
+        if (frameApp is not null) IgnoreAppText.Text = T("ui.ignoreapp", frameApp);
+
         ShowAi(incident.Explanation, null);
+    }
+
+    private void NoteBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_current is not { } incident || !Alive) return;
+        var note = NoteBox.Text.Trim();
+        if (note == (incident.Note ?? "")) return;
+        incident.Note = note.Length == 0 ? null : note;
+        Host.Store.Save(incident);
+    }
+
+    private void IgnoreApp_Click(object sender, RoutedEventArgs e)
+    {
+        if (IgnoreAppButton.Tag is not string app) return;
+        if (MessageBox.Show(this, T("ui.ignoreapp.confirm", app), "WhyLag", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        Host.UpdateSettings(s => s.IgnoredApps.Add(app));
+        IgnoreAppButton.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>Peak values in the analysed window, so the most important numbers are visible at a glance.</summary>
@@ -229,7 +371,7 @@ public partial class MainWindow : Window
             kpis.Add(new KpiView(T(label), Stats.Round(series.Max()).ToString("0.#", Culture), unit, note, category));
         }
         Add("kpi.frame", MetricKeys.FramesMaxMs, "ms", FindingCategory.Frames);
-        Add("kpi.dpc", MetricKeys.DpcMaxUs, "µs", FindingCategory.System);
+        Add("kpi.dpc", MetricKeys.DpcMaxUs, "Âµs", FindingCategory.System);
         Add("kpi.cpu", MetricKeys.CpuTotal, "%", FindingCategory.Cpu);
         Add("kpi.disk", MetricKeys.DiskActive, "%", FindingCategory.Disk);
         Add("kpi.ping", MetricKeys.PingTargetMs, "ms", FindingCategory.Network);
@@ -264,7 +406,7 @@ public partial class MainWindow : Window
         AiSummary.Text = explanation.Summary;
         AiSummary.Visibility = explanation.Summary.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         AiItems.ItemsSource = explanation.Items.Select(i => new AiItemView(
-            $"{i.FindingId} · {T($"likelihood.{i.Likelihood}")}", T("ui.ai.basedon", string.Join(", ", i.EvidenceIds)), i.Explanation, i.NextSteps,
+            $"{i.FindingId} Â· {T($"likelihood.{i.Likelihood}")}", T("ui.ai.basedon", string.Join(", ", i.EvidenceIds)), i.Explanation, i.NextSteps,
             categories.TryGetValue(i.FindingId, out var c) ? c : null)).ToList();
         AiCaveats.Text = string.Join("\n", explanation.Caveats);
         AiCaveats.Visibility = explanation.Caveats.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -297,7 +439,7 @@ public partial class MainWindow : Window
         try
         {
             var result = await new IncidentExplainer(client, settings).ExplainAsync(incident, cts.Token);
-            if (!ReferenceEquals(_current, incident)) return;
+            if (!Alive || !ReferenceEquals(_current, incident)) return;
             if (result.Explanation is { } explanation)
             {
                 incident.Explanation = explanation;
@@ -339,7 +481,7 @@ public partial class MainWindow : Window
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         Host.ShowSettings();
-        if (!IsLoaded) return; // the window is rebuilt when the language changed
+        if (!Alive) return; // shutting down, or the window was rebuilt because the language changed
         if (_current is not null) ShowAi(_current.Explanation, null);
         RefreshStatus();
     }

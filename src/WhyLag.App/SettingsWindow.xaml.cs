@@ -36,6 +36,7 @@ public partial class SettingsWindow : Window
         PingEnabled.IsChecked = Result.PingEnabled;
         PingTarget.Text = Result.PingTarget;
         FrameTimes.IsChecked = Result.FrameTimesEnabled;
+        IgnoredApps.Text = string.Join(", ", Result.IgnoredApps);
         DriverLatency.IsChecked = Result.DriverLatencyHelper;
         UpdatePresentMon();
 
@@ -226,6 +227,9 @@ public partial class SettingsWindow : Window
         Result.PingEnabled = PingEnabled.IsChecked == true;
         Result.PingTarget = PingTarget.Text.Trim();
         Result.FrameTimesEnabled = FrameTimes.IsChecked == true;
+        Result.IgnoredApps = IgnoredApps.Text.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(a => a.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? a[..^4] : a)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         Result.DriverLatencyHelper = DriverLatency.IsChecked == true;
         Result.Ai.Enabled = AiEnabled.IsChecked == true;
         Result.Ai.Endpoint = AiEndpoint.Text.Trim();

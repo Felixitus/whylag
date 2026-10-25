@@ -15,6 +15,8 @@ public sealed class WhyLagSettings
     public string Hotkey { get; set; } = "Ctrl+Alt+L";
     /// <summary>Records frame times with PresentMon when it is available and permitted.</summary>
     public bool FrameTimesEnabled { get; set; } = true;
+    /// <summary>Programs whose frame hitches never trigger an automatic incident (process names without .exe).</summary>
+    public List<string> IgnoredApps { get; set; } = new();
     /// <summary>Starts the elevated helper that names drivers with long DPC/ISR times (asks for admin approval).</summary>
     public bool DriverLatencyHelper { get; set; }
     /// <summary>"auto" uses the Windows display language; otherwise a language code such as "en" or "de".</summary>

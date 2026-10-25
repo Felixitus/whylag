@@ -28,6 +28,9 @@ public sealed class SpikeDetector
         "wallpaper32", "lively", "rainmeter",
     };
 
+    /// <summary>Programs the user chose to ignore ("Ignore hitches in …").</summary>
+    public IReadOnlySet<string> IgnoredApps { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
     public SpikeSignal? Feed(Tick tick)
     {
         // Every detector sees every tick, so their histories stay complete even when another one fires.
@@ -51,7 +54,7 @@ public sealed class SpikeDetector
     private SpikeSignal? FrameSpike(Tick tick)
     {
         if (tick.Get(MetricKeys.FramesMaxMs) is not { } max || tick.Get(MetricKeys.FramesMedianMs) is not { } median
-            || tick.Get(MetricKeys.FramesFps) < 20 || (tick.FrameApp is { } app && NonGames.Contains(app))) return null;
+            || tick.Get(MetricKeys.FramesFps) < 20 || (tick.FrameApp is { } app && (NonGames.Contains(app) || IgnoredApps.Contains(app)))) return null;
         var history = _frameHistory.Snapshot();
         _frameHistory.Add(median);
         if (history.Count < 30) return null;

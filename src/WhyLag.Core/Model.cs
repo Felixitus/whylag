@@ -143,6 +143,8 @@ public sealed class Incident
     public List<SystemEvent> Events { get; init; } = new();
     public List<Finding> Findings { get; set; } = new();
     public AiExplanation? Explanation { get; set; }
+    /// <summary>The user's own note, e.g. what they were doing or what the real cause turned out to be.</summary>
+    public string? Note { get; set; }
 
     public IEnumerable<Evidence> AllEvidence => Findings.SelectMany(f => f.Evidence);
 }

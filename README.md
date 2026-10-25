@@ -22,6 +22,8 @@ minutes in memory, so the moment can still be analysed afterwards.
 - **16 transparent rules** – e.g. *"Storage overloaded, mainly by MsMpEng"* or *"Delay already between PC and router"* –
   each with measured evidence and timestamps.
 - **Recurring patterns**: *"6× seen · usually between 21:00 and 23:00 · mostly on Tuesday"*.
+- **Incident table** with search, category filter and bulk delete; each report lists the recorded Windows events
+  and keeps your own note.
 - **Driver latency (optional)**: a small elevated helper names drivers that block the CPU (audio crackles, input lag).
 - **Local AI (optional)**: a model on your PC via [Ollama](https://ollama.com) explains findings in plain language.
   Every statement must cite evidence; invented numbers are removed. Cloud models are never used.
@@ -50,7 +52,11 @@ Releases include `SHA256SUMS.txt`. Builds are not code-signed yet, so SmartScree
 
 1. WhyLag starts in the tray. **Live overview** shows what it records; **Demo** shows a sample report.
 2. When something lags, press **Ctrl+Alt+L** and click the notification.
-3. **Recurring patterns** collects causes that keep coming back.
+3. **Recurring patterns** collects causes that keep coming back; **All incidents** lists everything in a table.
+4. Too many automatic incidents from one program? Use *Ignore hitches in …* in the report, or pause detection for an
+   hour from the tray menu.
+
+Shortcuts in the window: `F5` refresh, `Del` delete the open incident, `Ctrl+C` copy its report.
 
 ### Optional features
 

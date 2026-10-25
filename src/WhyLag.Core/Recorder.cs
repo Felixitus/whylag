@@ -39,6 +39,7 @@ public sealed class Recorder : IDisposable
         _machine = machine;
         _store = store;
         _ticks = new RingBuffer<Tick>(Math.Clamp(settings.BufferMinutes, 1, 120) * 60);
+        _detector.IgnoredApps = new HashSet<string>(settings.IgnoredApps, StringComparer.OrdinalIgnoreCase);
     }
 
     public event Action<Incident>? IncidentCaptured;
@@ -46,8 +47,15 @@ public sealed class Recorder : IDisposable
 
     public bool Paused { get; set; }
 
+    /// <summary>Automatic detection is suspended until this time (e.g. during a long build or a video render).</summary>
+    public DateTimeOffset AutoDetectPausedUntil { get; set; }
+
     /// <summary>Applies settings that do not change what is recorded (auto-detection, retention).</summary>
-    public void UpdateSettings(WhyLagSettings settings) => _settings = settings;
+    public void UpdateSettings(WhyLagSettings settings)
+    {
+        _settings = settings;
+        _detector.IgnoredApps = new HashSet<string>(settings.IgnoredApps, StringComparer.OrdinalIgnoreCase);
+    }
     public int BufferedSeconds => _ticks.Count;
     public Tick? LatestTick => _ticks.Latest();
 
@@ -110,7 +118,7 @@ public sealed class Recorder : IDisposable
             _ticks.Add(tick);
             TickRecorded?.Invoke(tick);
 
-            if (_settings.AutoDetect) HandleAutoDetect(tick);
+            if (_settings.AutoDetect && tick.Timestamp >= AutoDetectPausedUntil) HandleAutoDetect(tick);
         }
     }
 

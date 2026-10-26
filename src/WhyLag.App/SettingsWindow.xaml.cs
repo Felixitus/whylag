@@ -28,6 +28,18 @@ public partial class SettingsWindow : Window
         LanguageBox.ItemsSource = languages;
         LanguageBox.SelectedValue = languages.ContainsKey(Result.Language) ? Result.Language : "auto";
 
+        ThemeBox.ItemsSource = new Dictionary<string, string> { ["System"] = T("set.theme.system"), ["Light"] = T("set.theme.light"), ["Dark"] = T("set.theme.dark") };
+        ThemeBox.SelectedValue = Result.Theme;
+        NotifyBox.ItemsSource = new Dictionary<NotifyMode, string>
+        {
+            [NotifyMode.Summary] = T("set.notify.summary"),
+            [NotifyMode.All] = T("set.notify.all"),
+            [NotifyMode.HotkeyOnly] = T("set.notify.hotkey"),
+        };
+        NotifyBox.SelectedValue = Result.Notifications;
+        UpdateCheck.IsChecked = Result.CheckForUpdates;
+        Temperatures.IsChecked = Result.Temperatures;
+        RouterTraffic.IsChecked = Result.RouterTraffic;
         Hotkey.Text = Result.Hotkey;
         BufferMinutes.Text = Result.BufferMinutes.ToString();
         KeepIncidents.Text = Result.KeepIncidents.ToString();
@@ -219,6 +231,11 @@ public partial class SettingsWindow : Window
             DriverLatency.IsChecked = false;
 
         Result.Language = LanguageBox.SelectedValue as string ?? "auto";
+        Result.Theme = ThemeBox.SelectedValue as string ?? "System";
+        Result.Notifications = NotifyBox.SelectedValue is NotifyMode mode ? mode : NotifyMode.Summary;
+        Result.CheckForUpdates = UpdateCheck.IsChecked == true;
+        Result.Temperatures = Temperatures.IsChecked == true;
+        Result.RouterTraffic = RouterTraffic.IsChecked == true;
         Result.Hotkey = Hotkey.Text.Trim();
         Result.BufferMinutes = int.Parse(BufferMinutes.Text);
         Result.KeepIncidents = int.Parse(KeepIncidents.Text);
@@ -252,6 +269,16 @@ public partial class SettingsWindow : Window
                 MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
         foreach (var id in ids) store.Delete(id);
         MessageBox.Show(this, T("set.data.deleted"), "WhyLag");
+    }
+
+    private void BugReport_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog { FileName = $"whylag-bugreport-{DateTime.Now:yyyyMMdd-HHmm}.zip", Filter = "ZIP|*.zip" };
+        if (dialog.ShowDialog(this) != true) return;
+        var app = App.Current;
+        BugReport.Create(dialog.FileName, app.Settings, app.Recorder, app.Machine, app.Store);
+        if (MessageBox.Show(this, T("set.data.bugreport.done", dialog.FileName), "WhyLag", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+            App.OpenUrl(BugReport.NewIssueUrl);
     }
 
     private void Reset_Click(object sender, RoutedEventArgs e)

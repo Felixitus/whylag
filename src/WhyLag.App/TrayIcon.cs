@@ -14,8 +14,15 @@ internal sealed class TrayIcon : IDisposable
     private readonly Forms.ToolStripMenuItem _pauseItem;
     private Action? _balloonClick;
 
-    public TrayIcon(Action open, Action capture, Action<bool> pause, Action<bool> snooze, Action settings, Action exit)
+    public TrayIcon(Action open, Action capture, Action<bool> pause, Action<bool> snooze, Action<bool> overlay, bool overlayOn, Action settings, Action exit)
     {
+        Forms.ToolStripMenuItem? overlayItem = null;
+        overlayItem = new Forms.ToolStripMenuItem(T("tray.overlay"), null, (_, _) =>
+        {
+            overlayItem!.Checked = !overlayItem.Checked;
+            overlay(overlayItem.Checked);
+        })
+        { Checked = overlayOn };
         Forms.ToolStripMenuItem? snoozeItem = null;
         snoozeItem = new Forms.ToolStripMenuItem(T("tray.snooze"), null, (_, _) =>
         {
@@ -33,6 +40,7 @@ internal sealed class TrayIcon : IDisposable
         menu.Items.Add(T("tray.capture"), null, (_, _) => capture());
         menu.Items.Add(_pauseItem);
         menu.Items.Add(snoozeItem);
+        menu.Items.Add(overlayItem);
         menu.Items.Add(T("tray.settings"), null, (_, _) => settings());
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add(T("tray.exit"), null, (_, _) => exit());

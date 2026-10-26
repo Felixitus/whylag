@@ -40,20 +40,32 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
 Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
+Name: "pl"; MessagesFile: "compiler:Languages\Polish.isl"
+Name: "pt"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [CustomMessages]
 en.AutoStart=Start WhyLag when I sign in to Windows (recommended – it can only explain lags it has recorded)
 de.AutoStart=WhyLag bei der Windows-Anmeldung starten (empfohlen – es kann nur aufgezeichnete Ruckler erklären)
 fr.AutoStart=Démarrer WhyLag à l'ouverture de session Windows (recommandé – il ne peut expliquer que les saccades enregistrées)
 es.AutoStart=Iniciar WhyLag al iniciar sesión en Windows (recomendado: solo puede explicar los tirones que ha grabado)
+it.AutoStart=Avvia WhyLag quando accedo a Windows (consigliato – può spiegare solo i lag che ha registrato)
+pl.AutoStart=Uruchamiaj WhyLag po zalogowaniu do Windows (zalecane – może wyjaśnić tylko zarejestrowane lagi)
+pt.AutoStart=Iniciar o WhyLag ao entrar no Windows (recomendado – ele só pode explicar lags que gravou)
 en.DeleteData=Also delete WhyLag's saved incidents and settings?%n%n%1
 de.DeleteData=Auch die gespeicherten Vorfälle und Einstellungen von WhyLag löschen?%n%n%1
 fr.DeleteData=Supprimer aussi les incidents et paramètres enregistrés par WhyLag ?%n%n%1
 es.DeleteData=¿Eliminar también los incidentes y ajustes guardados de WhyLag?%n%n%1
+it.DeleteData=Eliminare anche gli incidenti e le impostazioni salvati da WhyLag?%n%n%1
+pl.DeleteData=Usunąć także zapisane zdarzenia i ustawienia WhyLag?%n%n%1
+pt.DeleteData=Excluir também os incidentes e configurações salvos do WhyLag?%n%n%1
 en.Launch=Start WhyLag now
 de.Launch=WhyLag jetzt starten
 fr.Launch=Lancer WhyLag maintenant
 es.Launch=Iniciar WhyLag ahora
+it.Launch=Avvia WhyLag ora
+pl.Launch=Uruchom WhyLag teraz
+pt.Launch=Iniciar o WhyLag agora
 
 [Tasks]
 Name: "autostart"; Description: "{cm:AutoStart}"

@@ -1,0 +1,27 @@
+// Built-in rules that are plain threshold checks. The format is documented in docs/rules.md;
+// the same format works for your own rules in %LOCALAPPDATA%\WhyLag\rules\*.json.
+[
+  {
+    "id": "net.retransmissions",
+    "category": "Network",
+    "when": [
+      { "metric": "net.tcp.retrans.pct", "above": 3 },
+      { "metric": "net.tcp.retrans", "above": 10 }
+    ],
+    "minSeconds": 2,
+    "peak": "net.tcp.retrans.pct",
+    "confidence": 0.5,
+    "boost": {
+      "any": [ { "metric": "wifi.signal", "below": 40 }, { "metric": "wifi.rssi", "below": -75 } ],
+      "confidence": 0.7
+    },
+    "title": "retrans.title",
+    "summary": "retrans.summary",
+    "evidence": [
+      { "text": "retrans.ev.peak", "args": [ "peak:net.tcp.retrans.pct", "peak:net.tcp.retrans" ] },
+      { "text": "retrans.ev.seconds", "args": [ "seconds" ] },
+      { "text": "retrans.ev.baseline", "args": [ "baseline:net.tcp.retrans.pct" ] }
+    ],
+    "checks": [ "retrans.check.cable", "retrans.check.drivers" ]
+  }
+]

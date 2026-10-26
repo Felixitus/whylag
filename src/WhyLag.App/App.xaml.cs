@@ -32,6 +32,62 @@ public partial class App : Application
     /// <summary>The running app, or null while it starts or after it shut down.</summary>
     public static App? Instance => Application.Current as App;
 
+    /// <summary>A newer release found by the daily update check (null if none or the check is off).</summary>
+    public UpdateInfo? AvailableUpdate { get; private set; }
+
+    public SessionStore Sessions { get; } = new();
+
+    /// <summary>Raised on the UI thread when a gaming session summary was saved.</summary>
+    public event Action<GameSession>? SessionAdded;
+
+    private OverlayWindow? _overlay;
+
+    private async Task CheckForUpdatesAsync()
+    {
+        if (!Settings.CheckForUpdates || DateTimeOffset.Now - Settings.LastUpdateCheck < TimeSpan.FromHours(20)) return;
+        var update = await UpdateChecker.CheckAsync();
+        if (IsExiting) return;
+        UpdateSettings(s => s.LastUpdateCheck = DateTimeOffset.Now);
+        if (update is null) return;
+        AvailableUpdate = update;
+        _tray?.Notify(T("update.title"), T("update.text", update.Version.ToString(3)), () => OpenUrl(update.Url));
+        _window?.RefreshStatus();
+    }
+
+    public static void OpenUrl(string url) =>
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+
+    /// <summary>Shows or hides the small always-on-top overlay with fps, ping and load.</summary>
+    public void ToggleOverlay(bool show)
+    {
+        if (show && _overlay is null)
+        {
+            _overlay = new OverlayWindow();
+            _overlay.Closed += (_, _) => _overlay = null;
+            _overlay.Show();
+        }
+        else if (!show)
+        {
+            _overlay?.Close();
+        }
+        if (Settings.OverlayEnabled != show) UpdateSettings(s => s.OverlayEnabled = show);
+    }
+
+    public bool OverlayVisible => _overlay is not null;
+
+    private void OnSession(GameSession session)
+    {
+        if (IsExiting) return;
+        Sessions.Save(session);
+        SessionAdded?.Invoke(session);
+        if (Settings.Notifications != NotifyMode.HotkeyOnly || session.Hitches > 0)
+            _tray?.Notify(T("session.notify.title", session.App),
+                T("session.notify.text", Duration(session.Duration), session.AverageFps.ToString("0", Loc.Culture), session.Hitches, session.IncidentIds.Count),
+                () => ShowMain());
+    }
+
+    public static string Duration(TimeSpan d) => d.TotalHours >= 1 ? T("duration.hm", (int)d.TotalHours, d.Minutes) : T("duration.m", (int)Math.Round(d.TotalMinutes));
+
     public static new App Current => (App)Application.Current;
 
     /// <summary>Raised on the UI thread when a new incident was saved.</summary>
@@ -80,6 +136,7 @@ public partial class App : Application
             MessageBox.Show(T("app.error", args.Exception.Message, AppPaths.LogsDir), "WhyLag");
         };
 
+        ApplyTheme(Settings.Theme);
         Machine = HardwareInfo.Machine();
         CreateTray();
         _hotkey = new HotkeyManager();
@@ -90,6 +147,8 @@ public partial class App : Application
         if (firstRun) SettingsStore.Save(Settings);
         if (firstRun || e.Args.Contains("--show")) ShowMain();
         else _tray!.Notify(T("app.started.title"), T("app.started.text", Settings.Hotkey));
+        if (Settings.OverlayEnabled) ToggleOverlay(true);
+        _ = CheckForUpdatesAsync();
     }
 
     private void CreateTray()
@@ -97,7 +156,7 @@ public partial class App : Application
         _tray?.Dispose();
         _tray = new TrayIcon(ShowMain, () => CaptureNow(TriggerKind.Manual), paused => { if (Recorder is not null) Recorder.Paused = paused; },
             snoozed => { if (Recorder is not null) Recorder.AutoDetectPausedUntil = snoozed ? DateTimeOffset.Now.AddHours(1) : default; },
-            ShowSettings, ExitApp);
+            ToggleOverlay, Settings.OverlayEnabled, ShowSettings, ExitApp);
     }
 
     /// <summary>
@@ -113,6 +172,7 @@ public partial class App : Application
             var (metrics, events) = DefaultSources.Create(settings, Machine);
             Recorder = new Recorder(settings, metrics, events, Machine, Store);
             Recorder.IncidentCaptured += incident => Dispatcher.BeginInvoke(() => OnIncident(incident));
+            Recorder.SessionEnded += session => Dispatcher.BeginInvoke(() => OnSession(session));
             Recorder.Start();
         }
         else
@@ -135,7 +195,8 @@ public partial class App : Application
 
     private static bool NeedsRecorderRestart(WhyLagSettings a, WhyLagSettings b) =>
         a.BufferMinutes != b.BufferMinutes || a.PingEnabled != b.PingEnabled || a.PingTarget != b.PingTarget
-        || a.FrameTimesEnabled != b.FrameTimesEnabled || a.DriverLatencyHelper != b.DriverLatencyHelper;
+        || a.FrameTimesEnabled != b.FrameTimesEnabled || a.DriverLatencyHelper != b.DriverLatencyHelper
+        || a.RouterTraffic != b.RouterTraffic || a.Temperatures != b.Temperatures;
 
     private void CaptureNow(TriggerKind trigger)
     {
@@ -157,9 +218,44 @@ public partial class App : Application
     {
         if (IsExiting) return;
         IncidentAdded?.Invoke(incident);
+        var automatic = incident.Trigger == TriggerKind.Automatic;
+        var mode = Settings.Notifications;
+        if (automatic && mode == NotifyMode.HotkeyOnly) return;
+        if (automatic && mode == NotifyMode.Summary && DateTimeOffset.Now - _lastAutoNotice < SummaryInterval)
+        {
+            // Several automatic incidents in a row: one summary notification instead of many.
+            _pendingAutoNotices++;
+            _summaryTimer ??= new System.Windows.Threading.DispatcherTimer { Interval = SummaryInterval };
+            _summaryTimer.Tick -= FlushSummary;
+            _summaryTimer.Tick += FlushSummary;
+            _summaryTimer.Start();
+            return;
+        }
+        if (automatic) _lastAutoNotice = DateTimeOffset.Now;
         var headline = incident.Findings.FirstOrDefault()?.Title ?? T("app.incident.none");
-        var title = incident.Trigger == TriggerKind.Automatic ? T("app.incident.auto") : T("app.incident.manual");
-        _tray?.Notify(title, headline, () => ShowMain(incident.Id));
+        _tray?.Notify(automatic ? T("app.incident.auto") : T("app.incident.manual"), headline, () => ShowMain(incident.Id));
+    }
+
+    private static readonly TimeSpan SummaryInterval = TimeSpan.FromMinutes(10);
+    private DateTimeOffset _lastAutoNotice;
+    private int _pendingAutoNotices;
+    private System.Windows.Threading.DispatcherTimer? _summaryTimer;
+
+    private void FlushSummary(object? sender, EventArgs e)
+    {
+        _summaryTimer?.Stop();
+        if (_pendingAutoNotices == 0 || IsExiting) return;
+        _tray?.Notify(T("app.incident.auto"), T("app.incident.summary", _pendingAutoNotices), ShowMain);
+        _pendingAutoNotices = 0;
+        _lastAutoNotice = DateTimeOffset.Now;
+    }
+
+    /// <summary>Applies the light/dark choice (WPF Fluent theme).</summary>
+    public void ApplyTheme(string theme)
+    {
+#pragma warning disable WPF0001
+        ThemeMode = theme switch { "Light" => ThemeMode.Light, "Dark" => ThemeMode.Dark, _ => ThemeMode.System };
+#pragma warning restore WPF0001
     }
 
     public void AddDemoIncident()
@@ -192,6 +288,7 @@ public partial class App : Application
         var old = Settings;
         SettingsStore.Save(dialog.Result);
         ApplySettings(dialog.Result, NeedsRecorderRestart(old, dialog.Result));
+        if (old.Theme != dialog.Result.Theme) ApplyTheme(dialog.Result.Theme);
 
         if (old.Language != dialog.Result.Language)
         {
@@ -215,6 +312,7 @@ public partial class App : Application
         if (IsExiting) return;
         IsExiting = true;
         // Close open dialogs first so that their callers return before the app state is torn down.
+        _overlay?.Close();
         foreach (var window in Windows.OfType<Window>().Where(w => w != _window).ToList()) window.Close();
         _window?.Close();
         Shutdown();

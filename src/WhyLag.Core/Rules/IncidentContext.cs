@@ -23,6 +23,8 @@ public sealed class IncidentContext
     }
 
     public IReadOnlyList<Tick> Ticks { get; }
+    /// <summary>Per-minute memory history of the last hours (may be empty).</summary>
+    public IReadOnlyList<MemorySample> LongTerm { get; init; } = [];
     public IReadOnlyList<SystemEvent> Events { get; }
     public DateTimeOffset TriggeredAt { get; }
     public TriggerKind Trigger { get; }

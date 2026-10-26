@@ -148,39 +148,42 @@ public sealed class BufferbloatRule : IRule
 }
 
 /// <summary>
-/// System-wide TCP retransmissions: data had to be sent again because packets were lost or arrived too late.
-/// This is visible even when pings look fine, e.g. with a weak Wi-Fi signal or a faulty cable.
+/// Latency rose while the router reported much more traffic than this PC caused: another device in the household
+/// (streaming, downloads, backups) filled the line. Needs the optional UPnP router reading.
 /// </summary>
-public sealed class TcpRetransmissionRule : IRule
+public sealed class HouseholdTrafficRule : IRule
 {
-    public string Id => "net.retransmissions";
+    public string Id => "net.household";
 
     public Finding? Evaluate(IncidentContext ctx)
     {
-        var bad = ctx.Focus.Where(t => t.Get(MetricKeys.TcpRetransPct) >= 3 && t.Get(MetricKeys.TcpRetransPerSec) >= 10).ToList();
-        if (bad.Count < 2) return null;
+        var target = PingAnalysis.Of(ctx, MetricKeys.PingTargetMs, MetricKeys.PingTargetLost);
+        if (!target.Problem || target.Peak is not { } spike) return null;
+        var around = ctx.Focus.Where(t => Math.Abs((t.Timestamp - spike.Timestamp).TotalSeconds) <= 3 && t.Get(MetricKeys.RouterDownMbps).HasValue).ToList();
+        if (around.Count == 0) return null;
 
-        var worst = bad.MaxBy(t => t.Get(MetricKeys.TcpRetransPct)!.Value)!;
-        var pct = worst.Get(MetricKeys.TcpRetransPct)!.Value;
-        var rate = worst.Get(MetricKeys.TcpRetransPerSec)!.Value;
-        var baseline = ctx.BaselineMedian(MetricKeys.TcpRetransPct);
-        var evidence = new List<Evidence>
-        {
-            Ev(worst.Timestamp, T("retrans.ev.peak", N(pct), N(rate)), pct, "%"),
-            Ev(ctx.FocusStart, T("retrans.ev.seconds", bad.Count), bad.Count, "s"),
-        };
-        if (!double.IsNaN(baseline)) evidence.Add(Ev(ctx.FocusStart, T("retrans.ev.baseline", N(baseline)), baseline, "%"));
+        var worst = around.MaxBy(t => Others(t).Down + Others(t).Up * 5)!;
+        var (down, up) = Others(worst);
+        if (down < 30 && up < 5) return null;
 
-        var wifiWeak = ctx.Focus.Any(t => t.Get(MetricKeys.WifiSignal) <= 40 || t.Get(MetricKeys.WifiRssi) <= -75);
+        var direction = up * 5 >= down ? T("net.upload") : T("net.download");
+        var evidence = new List<Evidence>();
+        target.AddEvidence(evidence, T("net.target"));
+        evidence.Add(Ev(worst.Timestamp, T("household.ev.router", N(worst.Get(MetricKeys.RouterDownMbps) ?? 0), N(worst.Get(MetricKeys.RouterUpMbps) ?? 0)), worst.Get(MetricKeys.RouterDownMbps), "Mbit/s"));
+        evidence.Add(Ev(worst.Timestamp, T("household.ev.pc", N(worst.Get(MetricKeys.NetDownMbps) ?? 0), N(worst.Get(MetricKeys.NetUpMbps) ?? 0)), worst.Get(MetricKeys.NetDownMbps), "Mbit/s"));
         return new Finding
         {
             RuleId = Id,
             Category = FindingCategory.Network,
-            Title = T("retrans.title", N(pct)),
-            Summary = T("retrans.summary"),
-            Confidence = wifiWeak ? 0.7 : 0.5,
+            Title = T("household.title", direction),
+            Summary = T("household.summary"),
+            Confidence = 0.65,
             Evidence = evidence,
-            Checks = [T("retrans.check.cable"), T("retrans.check.drivers")],
+            Checks = [T("household.check.devices"), T("bloat.check.sqm")],
         };
     }
+
+    private static (double Down, double Up) Others(Tick t) =>
+        (Math.Max(0, (t.Get(MetricKeys.RouterDownMbps) ?? 0) - (t.Get(MetricKeys.NetDownMbps) ?? 0)),
+         Math.Max(0, (t.Get(MetricKeys.RouterUpMbps) ?? 0) - (t.Get(MetricKeys.NetUpMbps) ?? 0)));
 }

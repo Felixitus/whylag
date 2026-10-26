@@ -19,6 +19,11 @@ return command switch
     "paths" => Paths(),
     "diag" => Diag(args.Skip(1).ToArray()),
     "demo" => Demo(),
+    "changes" => Changes(),
+    "router" => Router(),
+    "rules" => Rules(),
+    "export-fixture" => ExportFixture(args.ElementAtOrDefault(1)),
+    "check-fixture" => CheckFixture(args.Skip(1).ToArray()),
     "get-presentmon" => await GetPresentMon(),
     "latency-test" => LatencyTest(Option("--seconds", 5)),
     LatencyHelperHost.Argument => LatencyHelperHost.Run(args),
@@ -186,6 +191,32 @@ int LatencyTest(int seconds)
     return 0;
 }
 
+int Router()
+{
+    using var router = new RouterSource();
+    router.Start();
+    if (router.Warnings.Count > 0) { Console.WriteLine(router.Warnings[0]); return 1; }
+    for (var i = 0; i < 4; i++)
+    {
+        Thread.Sleep(2500);
+        var t = new Tick { Timestamp = DateTimeOffset.Now };
+        router.Collect(t);
+        Console.WriteLine($"router: down {t.Get(MetricKeys.RouterDownMbps):0.00} Mbit/s, up {t.Get(MetricKeys.RouterUpMbps):0.00} Mbit/s");
+    }
+    return 0;
+}
+
+int Changes()
+{
+    var changes = SystemChangeReader.Read(TimeSpan.FromDays(90));
+    Console.WriteLine($"{changes.Count} driver/Windows update(s) in the last 90 days:");
+    foreach (var c in changes.OrderByDescending(c => c.At).Take(15)) Console.WriteLine($"  {c.At.ToLocalTime():g}  {c.Kind,-13} {c.Description}");
+    var impacts = ChangeAnalyzer.Compare(changes, new IncidentStore().LoadAll(), DateTimeOffset.Now);
+    Console.WriteLine(impacts.Count == 0 ? "No change with clearly more incidents afterwards." : "Changes followed by more incidents:");
+    foreach (var i in impacts) Console.WriteLine($"  {i.Change.At.ToLocalTime():d} {i.Change.Description}: {i.Before} before ({i.DaysBefore:0} d), {i.After} after ({i.DaysAfter:0} d)");
+    return 0;
+}
+
 int Demo()
 {
     var incident = DemoIncident.Create(HardwareInfo.Machine());
@@ -209,6 +240,48 @@ int Diag(string[] paths)
     return 0;
 }
 
+int Rules()
+{
+    foreach (var rule in WhyLag.Core.Rules.RuleEngine.DefaultRules)
+        Console.WriteLine($"  {rule.Id,-28} {(rule is WhyLag.Core.Rules.JsonRule ? "json" : "code")}");
+    Console.WriteLine($"Your own rules: {AppPaths.RulesDir}");
+    foreach (var error in WhyLag.Core.Rules.JsonRules.Errors) Console.Error.WriteLine($"  error: {error}");
+    return WhyLag.Core.Rules.JsonRules.Errors.Count == 0 ? 0 : 1;
+}
+
+int ExportFixture(string? id)
+{
+    if (LoadIncident(id) is not { } incident) return 1;
+    static List<string> Ids(string? list) => list?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
+    var expectation = new FixtureExpectation
+    {
+        Description = OptionString("--description") ?? "",
+        Expect = Ids(OptionString("--expect")),
+        Forbid = Ids(OptionString("--forbid")),
+        AutoTrigger = OptionString("--auto") is { } auto ? bool.Parse(auto) : null,
+    };
+    var path = OptionString("--out") ?? $"{incident.Id}.json";
+    File.WriteAllText(path, Fixtures.Export(incident, expectation));
+    var problems = Fixtures.Check(expectation, Fixtures.Load(path).Incident);
+    Console.WriteLine($"Wrote {path} ({new FileInfo(path).Length / 1024} KB)");
+    foreach (var p in problems) Console.WriteLine($"  does not match yet: {p}");
+    return 0;
+}
+
+int CheckFixture(string[] paths)
+{
+    var failed = 0;
+    foreach (var path in paths)
+    {
+        var (expectation, incident) = Fixtures.Load(path);
+        var problems = Fixtures.Check(expectation, incident);
+        Console.WriteLine($"{(problems.Count == 0 ? "ok  " : "FAIL")} {Path.GetFileName(path)}");
+        foreach (var p in problems) Console.WriteLine($"     {p}");
+        if (problems.Count > 0) failed++;
+    }
+    return failed == 0 ? 0 : 1;
+}
+
 int Help()
 {
     Console.WriteLine("""
@@ -222,6 +295,13 @@ int Help()
           whylag-cli demo                                             create a demo incident with synthetic data
           whylag-cli get-presentmon                                   download PresentMon for frame times (checksum-verified)
           whylag-cli diag [counter paths]                             show raw performance counter values
+          whylag-cli changes                                          driver/Windows updates that made lag worse
+          whylag-cli router                                           read household traffic from the router (UPnP)
+          whylag-cli latency-test [--seconds 5]                       measure DPC/ISR latency (asks for admin rights)
+          whylag-cli rules                                            list rules, including your own JSON rules
+          whylag-cli export-fixture <id> --expect a,b [--forbid c] [--auto true|false] [--out file]
+                                                                      turn an incident into an anonymized test case
+          whylag-cli check-fixture <files>                            run rules on test cases
           whylag-cli paths                                            show where data is stored
         """);
     return 0;

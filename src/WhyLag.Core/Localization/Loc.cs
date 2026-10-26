@@ -47,7 +47,7 @@ public static class Loc
     {
         var result = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         var assembly = Assembly.GetExecutingAssembly();
-        foreach (var name in assembly.GetManifestResourceNames().Where(n => n.EndsWith(".json", StringComparison.Ordinal)))
+        foreach (var name in assembly.GetManifestResourceNames().Where(n => n.Contains(".Localization.", StringComparison.Ordinal) && n.EndsWith(".json", StringComparison.Ordinal)))
         {
             var code = Path.GetFileNameWithoutExtension(name).Split('.').Last();
             using var stream = assembly.GetManifestResourceStream(name)!;

@@ -10,6 +10,9 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      # Code signing runs only once the SignPath project is set up (repository variables and secret, see README).
+      SIGN: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -30,12 +33,70 @@ jobs:
         shell: pwsh
         run: ./build/publish.ps1
 
+      - name: Upload binaries for signing
+        if: env.SIGN == 'true'
+        id: unsigned-binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-binaries
+          path: |
+            artifacts/WhyLag/WhyLag.exe
+            artifacts/WhyLag/whylag-cli.exe
+
+      - name: Sign binaries (SignPath)
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: whylag
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: binaries
+          github-artifact-id: ${{ steps.unsigned-binaries.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: artifacts/signed
+
+      - name: Use signed binaries
+        if: env.SIGN == 'true'
+        shell: pwsh
+        run: |
+          Copy-Item artifacts/signed/*.exe artifacts/WhyLag -Force
+          $zip = Get-ChildItem artifacts/*-portable.zip
+          Remove-Item $zip
+          Compress-Archive -Path artifacts/WhyLag/* -DestinationPath $zip.FullName
+
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
 
       - name: Build installer
         shell: pwsh
         run: ./build/build-installer.ps1
+
+      - name: Upload installer for signing
+        if: env.SIGN == 'true'
+        id: unsigned-installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-installer
+          path: artifacts/*-setup.exe
+
+      - name: Sign installer (SignPath)
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: whylag
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: artifacts/signed-installer
+
+      - name: Use signed installer
+        if: env.SIGN == 'true'
+        shell: pwsh
+        run: Copy-Item artifacts/signed-installer/*-setup.exe artifacts -Force
 
       - name: Checksums
         shell: pwsh

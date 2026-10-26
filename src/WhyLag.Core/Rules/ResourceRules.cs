@@ -298,3 +298,84 @@ public sealed class BackgroundTaskRule : IRule
         };
     }
 }
+
+/// <summary>
+/// A program whose memory kept growing for hours – a typical memory leak (browsers, launchers, long game
+/// sessions). Over time it pushes the PC into paging and causes stutters that have nothing to do with the moment.
+/// </summary>
+public sealed class MemoryGrowthRule : IRule
+{
+    public string Id => "memory.growth";
+
+    public Finding? Evaluate(IncidentContext ctx)
+    {
+        var samples = ctx.LongTerm;
+        if (samples.Count < 60) return null; // needs at least an hour of history
+        var last = samples[^1];
+
+        foreach (var (name, now) in last.PrivateMb.OrderByDescending(kv => kv.Value))
+        {
+            var series = samples.Where(s => s.PrivateMb.ContainsKey(name)).Select(s => (s.At, Mb: s.PrivateMb[name])).ToList();
+            if (series.Count < 60) continue;
+            var first = series[0];
+            var growth = now - first.Mb;
+            var hours = (last.At - first.At).TotalHours;
+            if (growth < 1500 || now < first.Mb * 1.5 || hours < 1) continue;
+
+            // Mostly rising, not one jump: at least 70 % of the minute-to-minute steps did not go down.
+            var rising = series.Zip(series.Skip(1)).Count(p => p.Second.Mb >= p.First.Mb - 1);
+            if (rising < (series.Count - 1) * 0.7) continue;
+
+            var lowMemory = last.AvailablePct < 20;
+            return new Finding
+            {
+                RuleId = Id,
+                Category = FindingCategory.Memory,
+                Title = T("growth.title", name, N(growth / 1024)),
+                Summary = T("growth.summary"),
+                Subject = name,
+                Confidence = lowMemory ? 0.65 : 0.5,
+                Evidence =
+                [
+                    Ev(first.At, T("growth.ev.start", name, N(first.Mb)), first.Mb, "MB"),
+                    Ev(last.At, T("growth.ev.now", name, N(now), N(hours)), now, "MB"),
+                    Ev(last.At, T("growth.ev.free", N(last.AvailablePct)), last.AvailablePct, "%"),
+                ],
+                Checks = [T("growth.check.restart", name), T("growth.check.update")],
+            };
+        }
+        return null;
+    }
+}
+
+/// <summary>High CPU or GPU temperature (only when HWiNFO or LibreHardwareMonitor provides it).</summary>
+public sealed class TemperatureRule : IRule
+{
+    public string Id => "temperature.high";
+
+    public Finding? Evaluate(IncidentContext ctx)
+    {
+        var cpuPeak = ctx.PeakTick(MetricKeys.TempCpu);
+        var gpuPeak = ctx.PeakTick(MetricKeys.TempGpu);
+        var cpu = cpuPeak?.Get(MetricKeys.TempCpu) ?? 0;
+        var gpu = gpuPeak?.Get(MetricKeys.TempGpu) ?? 0;
+        var cpuHot = cpu >= 95;
+        var gpuHot = gpu >= 90;
+        if (!cpuHot && !gpuHot) return null;
+
+        var evidence = new List<Evidence>();
+        if (cpuHot) evidence.Add(Ev(cpuPeak!.Timestamp, T("temp.ev.cpu", N(cpu)), cpu, "°C"));
+        if (gpuHot) evidence.Add(Ev(gpuPeak!.Timestamp, T("temp.ev.gpu", N(gpu)), gpu, "°C"));
+        var throttled = ctx.Focus.Any(t => t.Get(MetricKeys.CpuPerformance) <= 75 && t.Get(MetricKeys.CpuTotal) >= 40);
+        return new Finding
+        {
+            RuleId = Id,
+            Category = cpuHot ? FindingCategory.Cpu : FindingCategory.Gpu,
+            Title = cpuHot ? T("temp.title.cpu", N(cpu)) : T("temp.title.gpu", N(gpu)),
+            Summary = T("temp.summary"),
+            Confidence = throttled ? 0.7 : 0.5,
+            Evidence = evidence,
+            Checks = [T("temp.check.cooling"), T("temp.check.fans")],
+        };
+    }
+}

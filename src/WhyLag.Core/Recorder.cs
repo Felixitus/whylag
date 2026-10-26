@@ -21,6 +21,8 @@ public sealed class Recorder : IDisposable
     private readonly RingBuffer<Tick> _ticks;
     private readonly RingBuffer<SystemEvent> _events = new(2000);
     private readonly SpikeDetector _detector = new();
+    private readonly SessionTracker _sessions = new();
+    private readonly LongTermHistory _longTerm = new();
     private readonly Dictionary<string, SourceStatus> _status = new();
     private readonly Dictionary<IMetricSource, int> _failures = new();
     private readonly Lock _statusLock = new();
@@ -44,6 +46,11 @@ public sealed class Recorder : IDisposable
 
     public event Action<Incident>? IncidentCaptured;
     public event Action<Tick>? TickRecorded;
+    /// <summary>Raised (on the recorder thread) when a gaming session of at least five minutes ended.</summary>
+    public event Action<GameSession>? SessionEnded;
+
+    /// <summary>The game currently being played, if a session is running.</summary>
+    public string? CurrentSessionApp => _sessions.CurrentApp;
 
     public bool Paused { get; set; }
 
@@ -117,6 +124,8 @@ public sealed class Recorder : IDisposable
             CollectAll(tick);
             _ticks.Add(tick);
             TickRecorded?.Invoke(tick);
+            _longTerm.Add(tick);
+            if (_sessions.Feed(tick) is { } session) SessionEnded?.Invoke(session);
 
             if (_settings.AutoDetect && tick.Timestamp >= AutoDetectPausedUntil) HandleAutoDetect(tick);
         }
@@ -173,7 +182,8 @@ public sealed class Recorder : IDisposable
             var ticks = _ticks.Snapshot().Where(t => t.Timestamp >= from).ToList();
             var events = _events.Snapshot().Where(e => e.Timestamp >= from).ToList();
 
-            var ctx = new IncidentContext(ticks, events, triggeredAt, trigger);
+            var longTerm = _longTerm.Last(TimeSpan.FromHours(6));
+            var ctx = new IncidentContext(ticks, events, triggeredAt, trigger) { LongTerm = longTerm };
             var incident = new Incident
             {
                 Id = $"{triggeredAt.ToLocalTime():yyyyMMdd-HHmmss}-{trigger.ToString().ToLowerInvariant()}",
@@ -184,6 +194,7 @@ public sealed class Recorder : IDisposable
                 Machine = _machine,
                 Ticks = ticks,
                 Events = events,
+                LongTerm = longTerm,
                 Findings = RuleEngine.Evaluate(ctx),
             };
 
@@ -192,6 +203,7 @@ public sealed class Recorder : IDisposable
                 _store.Save(incident);
                 _store.Prune(_settings.KeepIncidents);
             }
+            _sessions.NoteIncident(incident);
             IncidentCaptured?.Invoke(incident);
             return incident;
         }

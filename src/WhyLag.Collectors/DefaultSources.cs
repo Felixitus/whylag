@@ -15,6 +15,8 @@ public static class DefaultSources
         if (settings.FrameTimesEnabled) metrics.Add(new PresentMonSource());
         if (settings.PingEnabled) metrics.Add(new PingSource(settings.PingTarget));
         if (settings.DriverLatencyHelper) metrics.Add(new LatencyHelperSource());
+        if (settings.Temperatures) metrics.Add(new TemperatureSource());
+        if (settings.RouterTraffic) metrics.Add(new RouterSource());
         return (metrics, [new EventLogSource()]);
     }
 }

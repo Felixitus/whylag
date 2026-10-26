@@ -33,12 +33,18 @@ public static class MetricKeys
     public const string IsrTimePct = "cpu.isr.pct";          // interrupt time of the busiest core
     public const string DpcMaxUs = "lat.dpc.max.us";         // longest single DPC (elevated helper)
     public const string IsrMaxUs = "lat.isr.max.us";         // longest single ISR (elevated helper)
+    public const string TempCpu = "temp.cpu";                // °C, from HWiNFO or LibreHardwareMonitor
+    public const string TempGpu = "temp.gpu";
+    public const string RouterDownMbps = "router.down.mbps"; // whole household's internet traffic (UPnP)
+    public const string RouterUpMbps = "router.up.mbps";
 
     public static string Unit(string key) => key switch
     {
         CpuTotal or CpuPerformance or MemAvailablePct or DiskActive or Gpu3D or WifiSignal or TcpRetransPct or DpcTimePct or IsrTimePct => "%",
         TcpRetransPerSec => "segments/s",
         DpcMaxUs or IsrMaxUs => "µs",
+        TempCpu or TempGpu => "°C",
+        RouterDownMbps or RouterUpMbps => "Mbit/s",
         MemAvailableMb or GpuVramUsedMb => "MB",
         MemPagesIn => "pages/s",
         DiskLatencyMs or PingGatewayMs or PingTargetMs or TickGapMs or FramesMedianMs or FramesMaxMs => "ms",
@@ -64,6 +70,8 @@ public sealed class Tick
     public string? ForegroundProcess { get; set; }
     /// <summary>Program whose frames are measured in this tick (usually the game in front).</summary>
     public string? FrameApp { get; set; }
+    /// <summary>True when the foreground window covers the whole monitor (fullscreen or borderless game).</summary>
+    public bool? ForegroundFullscreen { get; set; }
     /// <summary>Drivers with the longest DPC/ISR times in this second (only with the elevated helper).</summary>
     public List<DriverLatency> Drivers { get; init; } = new();
 
@@ -141,6 +149,8 @@ public sealed class Incident
     public MachineInfo Machine { get; init; } = new();
     public List<Tick> Ticks { get; init; } = new();
     public List<SystemEvent> Events { get; init; } = new();
+    /// <summary>Process memory once per minute over the last hours (for slow memory growth).</summary>
+    public List<MemorySample> LongTerm { get; init; } = new();
     public List<Finding> Findings { get; set; } = new();
     public AiExplanation? Explanation { get; set; }
     /// <summary>The user's own note, e.g. what they were doing or what the real cause turned out to be.</summary>

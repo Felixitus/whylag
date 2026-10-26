@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhyLag – lag flight recorder for Windows</title>
+<meta name="description" content="WhyLag records what your Windows PC was doing when a game stuttered or a call froze, and explains the likely cause. Free, open source, local.">
+<style>
+:root {
+  --bg: #f7f8fa; --card: #ffffff; --text: #1b2230; --muted: #5d6676; --line: #e1e4ea; --accent: #2f6fde; --accent-text: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #17181b; --card: #222428; --text: #eceef2; --muted: #a2a8b3; --line: #33363c; --accent: #6b9cff; --accent-text: #0e1420; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 "Segoe UI", system-ui, sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 48px 16px 64px; }
+h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.1; margin: 0 0 12px; letter-spacing: -0.02em; }
+h2 { font-size: 24px; margin: 56px 0 16px; }
+p.lead { font-size: 19px; color: var(--muted); max-width: 680px; margin: 0 0 28px; }
+.buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+.button { display: inline-block; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; border: 1px solid var(--line); color: var(--text); background: var(--card); }
+.button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+code { font-family: "Cascadia Mono", Consolas, monospace; font-size: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
+.shot { width: 100%; border-radius: 10px; border: 1px solid var(--line); margin-top: 40px; display: block; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.card h3 { margin: 0 0 6px; font-size: 17px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+ol { padding-left: 22px; } li { margin: 6px 0; }
+footer { margin-top: 64px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 20px; }
+a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Why did it lag?</h1>
+  <p class="lead">WhyLag is a flight recorder for Windows. It keeps the last minutes of CPU, disk, GPU, network, frame times and driver activity in memory. When a game stutters or a call freezes, press a hotkey and it shows what happened at that exact moment.</p>
+  <div class="buttons">
+    <a class="button primary" href="https://github.com/Felixitus/whylag/releases/latest">Download for Windows</a>
+    <a class="button" href="https://github.com/Felixitus/whylag">Source code</a>
+  </div>
+  <p style="margin-top:16px;color:var(--muted);font-size:15px">or <code>winget install WhyLag.WhyLag</code> · free, Apache-2.0 · Windows 10/11</p>
+
+  <img class="shot" src="img/report.png" alt="WhyLag report: an internet ping spike while the router stayed fast, with a timeline of CPU, disk, GPU and ping">
+
+  <h2>What it finds</h2>
+  <div class="grid">
+    <div class="card"><h3>Background tasks</h3><p>Windows Update, Defender scans, cloud sync or a launcher downloading at the wrong moment.</p></div>
+    <div class="card"><h3>Network</h3><p>Tells your Wi-Fi and router apart from your provider, finds bufferbloat and other devices filling the line.</p></div>
+    <div class="card"><h3>Frame times</h3><p>Confirms real hitches with Intel PresentMon and writes a short report after every gaming session.</p></div>
+    <div class="card"><h3>Drivers</h3><p>Names drivers that block the CPU (DPC/ISR) and spots driver updates after which lag got worse.</p></div>
+    <div class="card"><h3>Hardware</h3><p>Full CPU, GPU or disk, low memory, slow memory leaks, thermal throttling and WHEA errors.</p></div>
+    <div class="card"><h3>Patterns</h3><p>“This happens every Tuesday around 21:00” – recurring causes show up on their own.</p></div>
+  </div>
+
+  <h2>How it works</h2>
+  <ol>
+    <li>WhyLag runs quietly in the tray and records once per second, using very little CPU.</li>
+    <li>Press <code>Ctrl+Alt+L</code> after a lag – freezes and network spikes are also detected automatically.</li>
+    <li>Deterministic rules turn the measurements into findings, each with the measured evidence.</li>
+    <li>Optional: a local AI model via Ollama explains the findings in plain language. Every statement is checked against the evidence; cloud models are never used.</li>
+  </ol>
+
+  <h2>Private by design</h2>
+  <p>Everything stays on your PC: no account, no telemetry. Incidents are readable JSON files. The only network traffic is a ping per second to your router and one internet address, plus an optional daily check for a new version. Available in English, German, French, Spanish, Italian, Polish and Portuguese.</p>
+
+  <img class="shot" src="img/live.png" alt="WhyLag live overview with CPU, GPU, disk, memory, ping and frame-rate tiles">
+
+  <footer>WhyLag is an independent open-source project and not affiliated with Microsoft, Intel or Ollama.</footer>
+</main>
+</body>
+</html>

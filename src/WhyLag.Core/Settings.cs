@@ -24,7 +24,25 @@ public sealed class WhyLagSettings
     /// <summary>Older incidents are deleted. Kept long enough to recognise recurring patterns.</summary>
     public int KeepIncidents { get; set; } = 100;
     public AiSettings Ai { get; set; } = new();
+    public NotifyMode Notifications { get; set; } = NotifyMode.Summary;
+    /// <summary>"System", "Light" or "Dark".</summary>
+    public string Theme { get; set; } = "System";
+    /// <summary>Last position and size of the main window (null = centred default).</summary>
+    public WindowPlacement? Window { get; set; }
+    public bool CheckForUpdates { get; set; } = true;
+    public DateTimeOffset LastUpdateCheck { get; set; }
+    public bool OverlayEnabled { get; set; }
+    public double OverlayLeft { get; set; } = 24;
+    public double OverlayTop { get; set; } = 24;
+    /// <summary>Reads total internet traffic from the router via UPnP to spot other devices using the line.</summary>
+    public bool RouterTraffic { get; set; }
+    /// <summary>Reads temperatures from LibreHardwareMonitor or HWiNFO when one of them is running.</summary>
+    public bool Temperatures { get; set; } = true;
 }
+
+public enum NotifyMode { All, Summary, HotkeyOnly }
+
+public sealed record WindowPlacement(double Left, double Top, double Width, double Height, bool Maximized);
 
 /// <summary>The local AI explainer is optional and off until the user enables it.</summary>
 public sealed class AiSettings
@@ -45,6 +63,7 @@ public static class AppPaths
     public static string ConfigFile => Path.Combine(Root, "config.json");
     public static string IncidentsDir => Path.Combine(Root, "incidents");
     public static string LogsDir => Path.Combine(Root, "logs");
+    public static string RulesDir => Path.Combine(Root, "rules");
 }
 
 public static class Json

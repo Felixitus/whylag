@@ -22,6 +22,28 @@ public class UserControlTests
     }
 
     [Fact]
+    public void Windowed_or_background_apps_do_not_trigger()
+    {
+        var detector = new SpikeDetector();
+        for (var i = 0; i < 40; i++) detector.Feed(Frame(i, "game", 10));
+
+        var windowed = Frame(40, "game", 400);
+        windowed.ForegroundProcess = "game";
+        windowed.ForegroundFullscreen = false;
+        Assert.Null(detector.Feed(windowed));
+
+        var background = Frame(41, "game", 400);
+        background.ForegroundProcess = "explorer";
+        background.ForegroundFullscreen = true;
+        Assert.Null(detector.Feed(background));
+
+        var fullscreen = Frame(42, "game", 400);
+        fullscreen.ForegroundProcess = "game";
+        fullscreen.ForegroundFullscreen = true;
+        Assert.NotNull(detector.Feed(fullscreen));
+    }
+
+    [Fact]
     public void Note_is_part_of_the_report()
     {
         var incident = new TestData().Analyse();

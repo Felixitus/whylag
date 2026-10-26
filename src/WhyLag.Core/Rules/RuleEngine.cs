@@ -11,7 +11,19 @@ public interface IRule
 
 public static class RuleEngine
 {
-    public static IReadOnlyList<IRule> DefaultRules { get; } =
+    /// <summary>Rules written in code, the built-in JSON rules and the user's own JSON rules.</summary>
+    public static IReadOnlyList<IRule> DefaultRules => _rules ??= [.. CodeRules, .. JsonRules.BuiltIn, .. JsonRules.LoadUser()];
+
+    private static IReadOnlyList<IRule>? _rules;
+
+    /// <summary>Reads the user's rule folder again on the next evaluation.</summary>
+    public static void ReloadUserRules()
+    {
+        JsonRules.Errors.Clear();
+        _rules = null;
+    }
+
+    public static IReadOnlyList<IRule> CodeRules { get; } =
     [
         new CpuSaturationRule(),
         new CpuThrottlingRule(),
@@ -27,8 +39,10 @@ public static class RuleEngine
         new EventLogRule(),
         new FrameStutterRule(),
         new WifiRule(),
-        new TcpRetransmissionRule(),
         new DriverLatencyRule(),
+        new MemoryGrowthRule(),
+        new TemperatureRule(),
+        new HouseholdTrafficRule(),
     ];
 
     /// <summary>Runs all rules, ranks the findings and assigns stable ids (F1.., E1..).</summary>

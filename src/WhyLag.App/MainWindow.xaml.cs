@@ -26,6 +26,10 @@ public sealed record KpiView(string Label, string Value, string Unit, string Not
 
 public sealed record AiItemView(string Header, string Evidence, string Text, List<string> Steps, FindingCategory? Category);
 
+public sealed record SessionView(string Title, string When, string Fps, string Low, string Hitches, string Incidents, string Load, string Causes);
+
+public sealed record ChangeView(string Title, string Detail);
+
 public sealed record IncidentRow(string Id, DateTimeOffset When, string WhenText, FindingCategory? Category, string CategoryText,
     string Cause, string App, string Trigger, int Findings, string Flags);
 
@@ -50,6 +54,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        RestorePlacement();
         Icon = TrayIcon.WindowIcon();
         Logo.Source = Icon;
         Language = System.Windows.Markup.XmlLanguage.GetLanguage(Culture.IetfLanguageTag);
@@ -69,12 +74,17 @@ public partial class MainWindow : Window
             new LiveTile(T("tile.wifi"), MetricKeys.WifiSignal, "%", FindingCategory.Network, 100,
                 t => t.Get(MetricKeys.WifiRssi) is { } rssi ? T("tile.wifi.note", rssi, Stats.Round(t.Get(MetricKeys.WifiRxMbps) ?? 0)) : null),
             new LiveTile(T("tile.retrans"), MetricKeys.TcpRetransPerSec, "/s", FindingCategory.Network, 10),
+            new LiveTile(T("tile.tempcpu"), MetricKeys.TempCpu, "°C", FindingCategory.Cpu, 100),
+            new LiveTile(T("tile.tempgpu"), MetricKeys.TempGpu, "°C", FindingCategory.Gpu, 100),
+            new LiveTile(T("tile.router.traffic"), MetricKeys.RouterDownMbps, "Mbit/s", FindingCategory.Network, 10,
+                t => T("tile.router.note", Stats.Round(t.Get(MetricKeys.RouterUpMbps) ?? 0), Stats.Round(t.Get(MetricKeys.NetDownMbps) ?? 0))),
             new LiveTile(T("tile.dpc"), MetricKeys.DpcTimePct, "%", FindingCategory.System, 10,
-                t => t.Get(MetricKeys.DpcMaxUs) is { } us ? T("tile.dpc.note", Stats.Round(us), t.Drivers.FirstOrDefault()?.Driver ?? "â€“") : null),
+                t => t.Get(MetricKeys.DpcMaxUs) is { } us ? T("tile.dpc.note", Stats.Round(us), t.Drivers.FirstOrDefault()?.Driver ?? "–") : null),
         ];
         foreach (var tile in _tiles) LiveTiles.Children.Add(tile);
 
         Host.IncidentAdded += OnIncidentAdded;
+        Closing += (_, _) => SavePlacement();
         Closed += (_, _) =>
         {
             Host.IncidentAdded -= OnIncidentAdded;
@@ -95,6 +105,25 @@ public partial class MainWindow : Window
         ShowLive();
     }
 
+    /// <summary>Restores the last window position and size if it is still on a connected screen.</summary>
+    private void RestorePlacement()
+    {
+        if (Host.Settings.Window is not { } w || w.Width < MinWidth || w.Height < MinHeight) return;
+        var screen = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+            SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
+        if (!screen.IntersectsWith(new Rect(w.Left, w.Top, w.Width, w.Height))) return;
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        (Left, Top, Width, Height) = (w.Left, w.Top, w.Width, w.Height);
+        if (w.Maximized) WindowState = WindowState.Maximized;
+    }
+
+    private void SavePlacement()
+    {
+        if (App.Instance is not { IsExiting: false } app) return;
+        var bounds = WindowState == WindowState.Normal ? new Rect(Left, Top, Width, Height) : RestoreBounds;
+        app.UpdateSettings(s => s.Window = new WindowPlacement(bounds.Left, bounds.Top, bounds.Width, bounds.Height, WindowState == WindowState.Maximized));
+    }
+
     public void Select(string id)
     {
         var item = _items.FirstOrDefault(i => i.Id == id);
@@ -107,6 +136,9 @@ public partial class MainWindow : Window
         var s = Host.Settings;
         HotkeyHint.Text = Host.HotkeyError ?? T("ui.hotkeyhint", s.Hotkey);
         HowTo.Text = T("ui.howto", s.Hotkey) + " " + (s.AutoDetect ? T("ui.howto.auto") : T("ui.howto.autooff"));
+
+        UpdateBanner.Visibility = Host.AvailableUpdate is null ? Visibility.Collapsed : Visibility.Visible;
+        if (Host.AvailableUpdate is { } update) UpdateText.Text = T("update.text", update.Version.ToString(3));
 
         if (Host.Recorder is not { } recorder) return;
         StatusTitle.Text = recorder.Paused ? T("ui.status.paused") : T("ui.status.recording");
@@ -163,7 +195,7 @@ public partial class MainWindow : Window
 
     private void ShowView(UIElement view)
     {
-        foreach (var v in new UIElement[] { LiveView, PatternsView, ReportView, TableView }) v.Visibility = v == view ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var v in new UIElement[] { LiveView, PatternsView, ReportView, TableView, SessionsView }) v.Visibility = v == view ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Live_Click(object sender, RoutedEventArgs e) => ShowLive();
@@ -191,6 +223,7 @@ public partial class MainWindow : Window
             p.ByHour, p.ByWeekday, hours, days, p.IncidentIds[^1])).ToList();
         PatternList.ItemsSource = patterns;
         NoPatterns.Visibility = patterns.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        _ = LoadChangesAsync();
     }
 
     private List<IncidentRow> _rows = new();
@@ -208,10 +241,10 @@ public partial class MainWindow : Window
     {
         var top = i.Findings.FirstOrDefault();
         var local = i.TriggeredAt.ToLocalTime();
-        var flags = (i.Explanation is null ? "" : "AI ") + (string.IsNullOrWhiteSpace(i.Note) ? "" : "âœŽ");
+        var flags = (i.Explanation is null ? "" : "AI ") + (string.IsNullOrWhiteSpace(i.Note) ? "" : "✎");
         return new IncidentRow(i.Id, local, local.ToString("d MMM, HH:mm:ss", Culture), top?.Category,
-            top is null ? "â€“" : Palette.Label(top.Category), top?.Title ?? T("report.none.title"),
-            i.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess ?? "â€“",
+            top is null ? "–" : Palette.Label(top.Category), top?.Title ?? T("report.none.title"),
+            i.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess ?? "–",
             i.Id.EndsWith("-demo", StringComparison.Ordinal) ? T("trigger.short.demo") : T($"trigger.short.{i.Trigger}"),
             i.Findings.Count, flags.Trim());
     }
@@ -286,6 +319,50 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Reads driver/Windows updates from the event log (can take a moment) and compares incident rates.</summary>
+    private async Task LoadChangesAsync()
+    {
+        ChangesStatus.Text = T("ui.changes.loading");
+        ChangeList.ItemsSource = null;
+        var incidents = Host.Store.LoadAll();
+        var impacts = await Task.Run(() => ChangeAnalyzer.Compare(Collectors.SystemChangeReader.Read(TimeSpan.FromDays(90)), incidents, DateTimeOffset.Now));
+        if (!Alive) return;
+        ChangeList.ItemsSource = impacts.Select(i => new ChangeView(
+            T(i.Change.Kind == ChangeKind.Driver ? "ui.changes.driver" : "ui.changes.update", i.Change.Description, i.Change.At.ToLocalTime().ToString("d", Culture)),
+            T("ui.changes.detail", i.After, i.DaysAfter.ToString("0", Culture), i.Before, i.DaysBefore.ToString("0", Culture)))).ToList();
+        ChangesStatus.Text = impacts.Count == 0 ? T("ui.changes.none") : "";
+    }
+
+    private void Sessions_Click(object sender, RoutedEventArgs e)
+    {
+        _current = null;
+        IncidentList.SelectedItem = null;
+        ShowView(SessionsView);
+        var sessions = Host.Sessions.LoadAll();
+        SessionList.ItemsSource = sessions.Select(s => new SessionView(
+            T("session.title", s.App, App.Duration(s.Duration)),
+            s.Start.ToLocalTime().ToString("g", Culture),
+            s.AverageFps.ToString("0", Culture), s.LowFps.ToString("0", Culture), s.Hitches.ToString(Culture),
+            s.IncidentIds.Count.ToString(Culture), $"{s.AverageCpu:0} / {s.AverageGpu:0} %",
+            s.Causes.Count == 0 ? T("session.nocauses") : T("session.causes", string.Join(" · ", s.Causes.Select(c => $"{c.Title} ({c.Count}×)"))))).ToList();
+        var running = Host.Recorder?.CurrentSessionApp;
+        SessionStatus.Text = running is not null ? T("session.running", running) : sessions.Count == 0 ? T("session.none") : "";
+    }
+
+    private void Update_Click(object sender, RoutedEventArgs e)
+    {
+        if (Host.AvailableUpdate is { } update) App.OpenUrl(update.Url);
+    }
+
+    private void ExportHtml_Click(object sender, RoutedEventArgs e)
+    {
+        if (_current is null) return;
+        var dialog = new SaveFileDialog { FileName = $"whylag-{_current.Id}.html", Filter = "HTML|*.html" };
+        if (dialog.ShowDialog(this) != true) return;
+        File.WriteAllText(dialog.FileName, HtmlReport.Build(_current));
+        App.OpenUrl(dialog.FileName);
+    }
+
     private void OpenPatternIncident_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string id }) Select(id);
@@ -302,13 +379,13 @@ public partial class MainWindow : Window
         HeroChip.Background = Palette.Brush(color, 0.16);
         HeroChipText.Foreground = Palette.Brush(color);
         HeroChipText.Text = top is null ? T("ui.hero.none") : T("ui.hero.likely", Palette.Label(top.Category));
-        ReportWhen.Text = incident.TriggeredAt.ToLocalTime().ToString("D", Culture) + " Â· " + incident.TriggeredAt.ToLocalTime().ToString("HH:mm:ss", Culture);
+        ReportWhen.Text = incident.TriggeredAt.ToLocalTime().ToString("D", Culture) + " · " + incident.TriggeredAt.ToLocalTime().ToString("HH:mm:ss", Culture);
         ReportTitle.Text = top?.Title ?? T("report.none.title");
 
         var fg = incident.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess;
         ReportSubtitle.Text = ReportBuilder.TriggerText(incident)
-                              + (fg is null ? "" : " Â· " + T("ui.infront", fg))
-                              + " Â· " + T("ui.recorded", incident.Ticks.Count, incident.Findings.Count);
+                              + (fg is null ? "" : " · " + T("ui.infront", fg))
+                              + " · " + T("ui.recorded", incident.Ticks.Count, incident.Findings.Count);
 
         Kpis.ItemsSource = BuildKpis(incident);
         Chart.Incident = incident;
@@ -371,7 +448,7 @@ public partial class MainWindow : Window
             kpis.Add(new KpiView(T(label), Stats.Round(series.Max()).ToString("0.#", Culture), unit, note, category));
         }
         Add("kpi.frame", MetricKeys.FramesMaxMs, "ms", FindingCategory.Frames);
-        Add("kpi.dpc", MetricKeys.DpcMaxUs, "Âµs", FindingCategory.System);
+        Add("kpi.dpc", MetricKeys.DpcMaxUs, "µs", FindingCategory.System);
         Add("kpi.cpu", MetricKeys.CpuTotal, "%", FindingCategory.Cpu);
         Add("kpi.disk", MetricKeys.DiskActive, "%", FindingCategory.Disk);
         Add("kpi.ping", MetricKeys.PingTargetMs, "ms", FindingCategory.Network);
@@ -406,7 +483,7 @@ public partial class MainWindow : Window
         AiSummary.Text = explanation.Summary;
         AiSummary.Visibility = explanation.Summary.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         AiItems.ItemsSource = explanation.Items.Select(i => new AiItemView(
-            $"{i.FindingId} Â· {T($"likelihood.{i.Likelihood}")}", T("ui.ai.basedon", string.Join(", ", i.EvidenceIds)), i.Explanation, i.NextSteps,
+            $"{i.FindingId} · {T($"likelihood.{i.Likelihood}")}", T("ui.ai.basedon", string.Join(", ", i.EvidenceIds)), i.Explanation, i.NextSteps,
             categories.TryGetValue(i.FindingId, out var c) ? c : null)).ToList();
         AiCaveats.Text = string.Join("\n", explanation.Caveats);
         AiCaveats.Visibility = explanation.Caveats.Count > 0 ? Visibility.Visible : Visibility.Collapsed;

@@ -55,6 +55,9 @@ public sealed class SpikeDetector
     {
         if (tick.Get(MetricKeys.FramesMaxMs) is not { } max || tick.Get(MetricKeys.FramesMedianMs) is not { } median
             || tick.Get(MetricKeys.FramesFps) < 20 || (tick.FrameApp is { } app && (NonGames.Contains(app) || IgnoredApps.Contains(app)))) return null;
+        // Only a game in front that fills the screen counts; windowed programs hitch harmlessly all the time.
+        if (tick.ForegroundFullscreen == false) return null;
+        if (tick.ForegroundProcess is { } fg && tick.FrameApp is { } fa && !fg.Equals(fa, StringComparison.OrdinalIgnoreCase)) return null;
         var history = _frameHistory.Snapshot();
         _frameHistory.Add(median);
         if (history.Count < 30) return null;

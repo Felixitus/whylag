@@ -171,6 +171,10 @@ async Task<int> GetPresentMon()
 
 int LatencyTest(int seconds)
 {
+    static void Print(double dpc, double isr, IEnumerable<DriverLatency> drivers) =>
+        Console.WriteLine($"DPC max {dpc:0} µs, ISR max {isr:0} µs; " +
+                          string.Join(", ", drivers.Select(d => $"{d.Driver} {d.MaxMicroseconds:0} µs ({d.Count}×)")));
+
     using var tracer = new KernelLatencyTracer();
     try
     {
@@ -178,17 +182,44 @@ int LatencyTest(int seconds)
     }
     catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
     {
-        Console.Error.WriteLine(ex.Message);
-        return 1;
+        // Not elevated: use the same helper the app starts (Windows asks for administrator approval).
+        Console.WriteLine($"{ex.Message} Starting the elevated helper – confirm the Windows prompt ...");
+        return LatencyTestWithHelper(seconds, Print);
     }
     for (var i = 0; i < seconds; i++)
     {
         Thread.Sleep(1000);
         var s = tracer.TakeSecond();
-        Console.WriteLine($"DPC max {s.DpcMaxUs:0} µs, ISR max {s.IsrMaxUs:0} µs; " +
-                          string.Join(", ", s.Drivers.Select(d => $"{d.Driver} {d.MaxMicroseconds:0} µs ({d.Count}×)")));
+        Print(s.DpcMaxUs, s.IsrMaxUs, s.Drivers);
     }
     return 0;
+}
+
+int LatencyTestWithHelper(int seconds, Action<double, double, IEnumerable<DriverLatency>> print)
+{
+    using var helper = new LatencyHelperSource();
+    helper.Start();
+    var received = 0;
+    var waited = Stopwatch.StartNew();
+    while (received < seconds && waited.Elapsed < TimeSpan.FromSeconds(seconds + 180))
+    {
+        Thread.Sleep(1000);
+        var tick = new Tick { Timestamp = DateTimeOffset.Now };
+        try
+        {
+            helper.Collect(tick);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+        if (tick.Get(MetricKeys.DpcMaxUs) is not { } dpc) continue;
+        print(dpc, tick.Get(MetricKeys.IsrMaxUs) ?? 0, tick.Drivers);
+        received++;
+    }
+    if (received == 0) Console.Error.WriteLine("No data from the helper.");
+    return received > 0 ? 0 : 1;
 }
 
 int Router()

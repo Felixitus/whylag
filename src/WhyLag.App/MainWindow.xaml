@@ -85,13 +85,21 @@
                     </DockPanel>
                 </StackPanel>
 
-                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,12,0,0">
-                    <Button Click="Settings_Click" Padding="10,6" AutomationProperties.Name="{local:Tr ui.settings}" Margin="0,0,8,0">
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                    <Button Click="Settings_Click" Padding="10,6" AutomationProperties.Name="{local:Tr ui.settings}" HorizontalAlignment="Left">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" Style="{StaticResource Icon}" Margin="0,0,8,0"/>
                             <TextBlock Text="{local:Tr ui.settings}"/>
                         </StackPanel>
                     </Button>
+                    <TextBlock Style="{StaticResource Caption}" Margin="2,10,0,0">
+                        <Hyperlink NavigateUri="https://github.com/Felixitus/whylag" RequestNavigate="Link_RequestNavigate"
+                                   ToolTip="https://github.com/Felixitus/whylag"><Run Text="{local:Tr ui.github}"/></Hyperlink>
+                    </TextBlock>
+                    <TextBlock Style="{StaticResource Caption}" Margin="2,4,0,0">
+                        <Hyperlink NavigateUri="https://buymeacoffee.com/felixitus" RequestNavigate="Link_RequestNavigate"
+                                   ToolTip="https://buymeacoffee.com/felixitus"><Run Text="&#x2615; "/><Run Text="{local:Tr ui.coffee}"/></Hyperlink>
+                    </TextBlock>
                 </StackPanel>
 
                 <Grid>

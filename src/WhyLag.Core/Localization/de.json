@@ -543,5 +543,7 @@
   "ui.exporthtml": "Als HTML exportieren",
   "update.title": "WhyLag-Update verfügbar",
   "update.text": "Version {0} ist verfügbar.",
-  "update.open": "Herunterladen"
+  "update.open": "Herunterladen",
+  "ui.github": "Open Source auf GitHub",
+  "ui.coffee": "Spendier mir einen Kaffee"
 }

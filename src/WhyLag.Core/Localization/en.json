@@ -543,5 +543,7 @@
   "ui.exporthtml": "Export HTML",
   "update.title": "WhyLag update available",
   "update.text": "Version {0} is available.",
-  "update.open": "Download"
+  "update.open": "Download",
+  "ui.github": "Open source on GitHub",
+  "ui.coffee": "Buy me a coffee"
 }

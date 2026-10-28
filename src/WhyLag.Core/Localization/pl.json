@@ -543,5 +543,7 @@
   "ui.exporthtml": "Eksportuj HTML",
   "update.title": "Dostępna aktualizacja WhyLag",
   "update.text": "Dostępna jest wersja {0}.",
-  "update.open": "Pobierz"
+  "update.open": "Pobierz",
+  "ui.github": "Open source na GitHubie",
+  "ui.coffee": "Postaw mi kawę"
 }

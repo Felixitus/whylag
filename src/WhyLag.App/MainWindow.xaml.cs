@@ -349,6 +349,12 @@ public partial class MainWindow : Window
         SessionStatus.Text = running is not null ? T("session.running", running) : sessions.Count == 0 ? T("session.none") : "";
     }
 
+    private void Link_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        App.OpenUrl(e.Uri.AbsoluteUri);
+        e.Handled = true;
+    }
+
     private void Update_Click(object sender, RoutedEventArgs e)
     {
         if (Host.AvailableUpdate is { } update) App.OpenUrl(update.Url);

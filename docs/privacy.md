@@ -29,6 +29,7 @@ Copied and exported reports remove user and computer names.
 | Ollama (`127.0.0.1:11434` by default) | only on *Explain*, *Test connection* or a confirmed model download |
 | github.com | only on a confirmed PresentMon download (not needed with the installer) |
 | api.github.com | once a day to read the latest WhyLag version number; can be turned off in *Settings* |
+| github.com | when you click *Update now* (or automatic updates are on): downloads the installer and `SHA256SUMS.txt` of the new release |
 | Your router (SSDP multicast and UPnP on the local network) | only when *router traffic* is enabled |
 
 No telemetry or crash uploads. The bug report ZIP (*Settings → Data*) is only created on request and stays on your

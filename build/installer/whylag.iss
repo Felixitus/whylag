@@ -1,4 +1,4 @@
-﻿; Inno Setup script for WhyLag. Build with build/build-installer.ps1 after build/publish.ps1.
+; Inno Setup script for WhyLag. Build with build/build-installer.ps1 after build/publish.ps1.
 ; Per-user installation: no administrator rights, nothing outside the user's profile.
 
 #ifndef AppVersion
@@ -91,6 +91,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: 
 
 [Run]
 Filename: "{app}\{#AppExe}"; Parameters: "--show"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
+; Silent update started by WhyLag itself (/RELAUNCH=1): start it again afterwards.
+Filename: "{app}\{#AppExe}"; Flags: nowait; Check: RelaunchRequested
 
 [UninstallRun]
 ; Stops the frame-time trace session in case WhyLag did not exit cleanly.
@@ -108,6 +110,11 @@ begin
     Exec(Exe, '--exit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
     Sleep(2500);
   end;
+end;
+
+function RelaunchRequested(): Boolean;
+begin
+  Result := ExpandConstant('{param:RELAUNCH|0}') = '1';
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;

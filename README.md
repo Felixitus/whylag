@@ -52,7 +52,11 @@ Windows 10 22H2 / 11, x64. Per user, no admin rights, no .NET needed.
 | Source | `git clone https://github.com/Felixitus/whylag.git` → `dotnet run --project src/WhyLag.App` (.NET 10 SDK) |
 
 Releases include `SHA256SUMS.txt`. Builds are not code-signed yet, so SmartScreen may warn once (see
-[Code signing](#code-signing)). WhyLag checks GitHub once a day for a new version; turn it off in Settings.
+[Code signing](#code-signing)).
+
+**Updates:** WhyLag checks GitHub once a day. *Update now* downloads the new installer, verifies it against the
+release's `SHA256SUMS.txt`, installs it silently and restarts WhyLag. Optionally new versions are installed
+automatically when WhyLag starts (*Settings → General*). The portable version opens the download page instead.
 
 ## Usage
 

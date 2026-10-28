@@ -138,7 +138,8 @@ public partial class MainWindow : Window
         HowTo.Text = T("ui.howto", s.Hotkey) + " " + (s.AutoDetect ? T("ui.howto.auto") : T("ui.howto.autooff"));
 
         UpdateBanner.Visibility = Host.AvailableUpdate is null ? Visibility.Collapsed : Visibility.Visible;
-        if (Host.AvailableUpdate is { } update) UpdateText.Text = T("update.text", update.Version.ToString(3));
+        if (Host.AvailableUpdate is { } update) UpdateText.Text = Host.UpdateStatus ?? T("update.text", update.Version.ToString(3));
+        UpdateButtons.Visibility = Host.UpdateStatus is null ? Visibility.Visible : Visibility.Collapsed;
 
         if (Host.Recorder is not { } recorder) return;
         StatusTitle.Text = recorder.Paused ? T("ui.status.paused") : T("ui.status.recording");
@@ -355,9 +356,11 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void Update_Click(object sender, RoutedEventArgs e)
+    private void Update_Click(object sender, RoutedEventArgs e) => _ = Host.InstallUpdateAsync();
+
+    private void UpdateNotes_Click(object sender, RoutedEventArgs e)
     {
-        if (Host.AvailableUpdate is { } update) App.OpenUrl(update.Url);
+        if (Host.AvailableUpdate is { } update) App.OpenUrl(update.PageUrl);
     }
 
     private void ExportHtml_Click(object sender, RoutedEventArgs e)

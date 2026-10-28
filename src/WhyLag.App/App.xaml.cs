@@ -14,8 +14,10 @@ namespace WhyLag.App;
 public partial class App : Application
 {
     private const string ExitEventName = @"Local\WhyLag.Exit";
+    private const string ShowEventName = @"Local\WhyLag.Show";
     private Mutex? _singleInstance;
     private EventWaitHandle? _exitRequested;
+    private EventWaitHandle? _showRequested;
     private TrayIcon? _tray;
     private HotkeyManager? _hotkey;
     private MainWindow? _window;
@@ -33,7 +35,13 @@ public partial class App : Application
     public static App? Instance => Application.Current as App;
 
     /// <summary>A newer release found by the daily update check (null if none or the check is off).</summary>
-    public UpdateInfo? AvailableUpdate { get; private set; }
+    public ReleaseInfo? AvailableUpdate { get; private set; }
+
+    /// <summary>Progress text while an update is downloaded or installed; null otherwise.</summary>
+    public string? UpdateStatus { get; private set; }
+
+    private bool _installingUpdate;
+    private System.Windows.Threading.DispatcherTimer? _updateTimer;
 
     public SessionStore Sessions { get; } = new();
 
@@ -42,15 +50,61 @@ public partial class App : Application
 
     private OverlayWindow? _overlay;
 
-    private async Task CheckForUpdatesAsync()
+    /// <summary>
+    /// Checks at most once a day. Automatic installation only happens right after WhyLag starts, never in the middle
+    /// of a running session (a game would lose its recording).
+    /// </summary>
+    private async Task CheckForUpdatesAsync(bool atStartup)
     {
-        if (!Settings.CheckForUpdates || DateTimeOffset.Now - Settings.LastUpdateCheck < TimeSpan.FromHours(20)) return;
+        if (!Settings.CheckForUpdates || AvailableUpdate is not null || DateTimeOffset.Now - Settings.LastUpdateCheck < TimeSpan.FromHours(20)) return;
         var update = await UpdateChecker.CheckAsync();
         if (IsExiting) return;
         UpdateSettings(s => s.LastUpdateCheck = DateTimeOffset.Now);
         if (update is null) return;
         AvailableUpdate = update;
-        _tray?.Notify(T("update.title"), T("update.text", update.Version.ToString(3)), () => OpenUrl(update.Url));
+        _window?.RefreshStatus();
+        if (atStartup && Settings.AutoInstallUpdates && UpdateChecker.CanInstall)
+            await InstallUpdateAsync();
+        else
+            _tray?.Notify(T("update.title"), T("update.text", update.Version.ToString(3)), ShowMain);
+    }
+
+    /// <summary>Downloads, verifies and installs the available update, then exits; WhyLag is restarted by the installer.</summary>
+    public async Task InstallUpdateAsync()
+    {
+        if (AvailableUpdate is not { } update || _installingUpdate) return;
+        if (!UpdateChecker.CanInstall)
+        {
+            OpenUrl(update.PageUrl);
+            return;
+        }
+        _installingUpdate = true;
+        try
+        {
+            var progress = new Progress<int>(p => SetUpdateStatus(T("update.downloading", p)));
+            SetUpdateStatus(T("update.downloading", 0));
+            var setup = await UpdateChecker.DownloadAsync(update, progress);
+            if (IsExiting) return;
+            SetUpdateStatus(T("update.installing"));
+            UpdateChecker.StartInstaller(setup);
+            ExitApp();
+        }
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or InvalidDataException or IOException
+                                       or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            Log(ex);
+            SetUpdateStatus(null);
+            _tray?.Notify(T("update.title"), T("update.failed", ex.Message), () => OpenUrl(update.PageUrl));
+        }
+        finally
+        {
+            _installingUpdate = false;
+        }
+    }
+
+    private void SetUpdateStatus(string? text)
+    {
+        UpdateStatus = text;
         _window?.RefreshStatus();
     }
 
@@ -121,12 +175,19 @@ public partial class App : Application
         _singleInstance = new Mutex(true, @"Local\WhyLag.App", out var first);
         if (!first)
         {
-            MessageBox.Show(T("app.running"), "WhyLag");
+            // Started again (Start menu, desktop icon): bring up the window of the running instance.
+            if (EventWaitHandle.TryOpenExisting(ShowEventName, out var showEvent))
+            {
+                using (showEvent) showEvent.Set();
+            }
+            else MessageBox.Show(T("app.running"), "WhyLag");
             Shutdown();
             return;
         }
         _exitRequested = new EventWaitHandle(false, EventResetMode.AutoReset, ExitEventName);
         ThreadPool.RegisterWaitForSingleObject(_exitRequested, (_, _) => Dispatcher.BeginInvoke(ExitApp), null, Timeout.Infinite, executeOnlyOnce: true);
+        _showRequested = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+        ThreadPool.RegisterWaitForSingleObject(_showRequested, (_, _) => Dispatcher.BeginInvoke(() => { if (!IsExiting) ShowMain(); }), null, Timeout.Infinite, executeOnlyOnce: false);
 
         DispatcherUnhandledException += (_, args) =>
         {
@@ -148,7 +209,12 @@ public partial class App : Application
         if (firstRun || e.Args.Contains("--show")) ShowMain();
         else _tray!.Notify(T("app.started.title"), T("app.started.text", Settings.Hotkey));
         if (Settings.OverlayEnabled) ToggleOverlay(true);
-        _ = CheckForUpdatesAsync();
+        UpdateChecker.CleanUp();
+        _ = CheckForUpdatesAsync(atStartup: true);
+        // WhyLag usually runs for days in the tray, so look again every few hours (still at most once a day).
+        _updateTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(3) };
+        _updateTimer.Tick += (_, _) => _ = CheckForUpdatesAsync(atStartup: false);
+        _updateTimer.Start();
     }
 
     private void CreateTray()
@@ -324,6 +390,7 @@ public partial class App : Application
         _hotkey?.Dispose();
         _tray?.Dispose();
         _exitRequested?.Dispose();
+        _showRequested?.Dispose();
         _singleInstance?.Dispose();
         base.OnExit(e);
     }

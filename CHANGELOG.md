@@ -2,6 +2,20 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+### Added
+
+- Updates from inside the app: *Update now* downloads the installer of the new release, verifies its SHA-256
+  against the release's checksum file, installs it silently and restarts WhyLag; optional automatic installation
+  when WhyLag starts. The update check also runs every few hours while WhyLag stays open.
+- Links to the source code on GitHub and to Buy Me a Coffee in the sidebar.
+
+### Changed
+
+- Starting WhyLag again (Start menu, desktop icon) brings up the window of the running instance instead of a
+  message box.
+
 ## [0.1.0] - 2026-10-26
 
 ### Added

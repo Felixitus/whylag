@@ -136,8 +136,11 @@
                 <Border x:Name="UpdateBanner" CornerRadius="8" Padding="14,10" Margin="0,0,0,16" Visibility="Collapsed"
                         Background="{DynamicResource SystemFillColorAttentionBackgroundBrush}">
                     <DockPanel>
-                        <Button DockPanel.Dock="Right" Content="{local:Tr update.open}" Click="Update_Click" Padding="12,5"/>
-                        <TextBlock x:Name="UpdateText" Style="{StaticResource Body}" VerticalAlignment="Center"/>
+                        <StackPanel x:Name="UpdateButtons" DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="{local:Tr update.notes}" Click="UpdateNotes_Click" Padding="12,5" Margin="0,0,8,0"/>
+                            <Button Content="{local:Tr update.install}" Click="Update_Click" Padding="12,5" Style="{StaticResource AccentButtonStyle}"/>
+                        </StackPanel>
+                        <TextBlock x:Name="UpdateText" Style="{StaticResource Body}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                     </DockPanel>
                 </Border>
                 <TextBlock Text="{local:Tr ui.live}" Style="{StaticResource Display}"/>

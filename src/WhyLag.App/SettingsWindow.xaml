@@ -72,6 +72,9 @@
                             <CheckBox x:Name="UpdateCheck" Margin="0,4,0,0">
                                 <TextBlock Text="{local:Tr set.updates}" TextWrapping="Wrap"/>
                             </CheckBox>
+                            <CheckBox x:Name="AutoUpdate" Margin="28,4,0,0" IsEnabled="{Binding IsChecked, ElementName=UpdateCheck}">
+                                <TextBlock Text="{local:Tr set.autoupdate}" TextWrapping="Wrap"/>
+                            </CheckBox>
                             <CheckBox x:Name="Temperatures" Margin="0,4,0,0">
                                 <TextBlock Text="{local:Tr set.temperatures}" TextWrapping="Wrap"/>
                             </CheckBox>

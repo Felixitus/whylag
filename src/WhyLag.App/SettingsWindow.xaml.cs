@@ -38,6 +38,7 @@ public partial class SettingsWindow : Window
         };
         NotifyBox.SelectedValue = Result.Notifications;
         UpdateCheck.IsChecked = Result.CheckForUpdates;
+        AutoUpdate.IsChecked = Result.AutoInstallUpdates;
         Temperatures.IsChecked = Result.Temperatures;
         RouterTraffic.IsChecked = Result.RouterTraffic;
         Hotkey.Text = Result.Hotkey;
@@ -234,6 +235,7 @@ public partial class SettingsWindow : Window
         Result.Theme = ThemeBox.SelectedValue as string ?? "System";
         Result.Notifications = NotifyBox.SelectedValue is NotifyMode mode ? mode : NotifyMode.Summary;
         Result.CheckForUpdates = UpdateCheck.IsChecked == true;
+        Result.AutoInstallUpdates = AutoUpdate.IsChecked == true;
         Result.Temperatures = Temperatures.IsChecked == true;
         Result.RouterTraffic = RouterTraffic.IsChecked == true;
         Result.Hotkey = Hotkey.Text.Trim();

@@ -543,7 +543,13 @@
   "ui.exporthtml": "Esporta HTML",
   "update.title": "Aggiornamento di WhyLag disponibile",
   "update.text": "È disponibile la versione {0}.",
-  "update.open": "Scarica",
   "ui.github": "Open source su GitHub",
-  "ui.coffee": "Offrimi un caffè"
+  "ui.coffee": "Offrimi un caffè",
+  "update.install": "Aggiorna ora",
+  "update.notes": "Novità",
+  "update.downloading": "Download dell'aggiornamento… {0} %",
+  "update.installing": "Installazione dell'aggiornamento – WhyLag si riavvia tra poco.",
+  "update.failed": "Impossibile installare l'aggiornamento: {0} Fai clic per aprire la pagina di download.",
+  "update.badhash": "Il download non corrisponde al checksum pubblicato ed è stato eliminato.",
+  "set.autoupdate": "Installa automaticamente le nuove versioni all'avvio di WhyLag"
 }

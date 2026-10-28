@@ -30,6 +30,8 @@ public sealed class WhyLagSettings
     /// <summary>Last position and size of the main window (null = centred default).</summary>
     public WindowPlacement? Window { get; set; }
     public bool CheckForUpdates { get; set; } = true;
+    /// <summary>Install a new version without asking when WhyLag starts (only installed copies).</summary>
+    public bool AutoInstallUpdates { get; set; }
     public DateTimeOffset LastUpdateCheck { get; set; }
     public bool OverlayEnabled { get; set; }
     public double OverlayLeft { get; set; } = 24;

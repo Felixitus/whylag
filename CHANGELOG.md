@@ -2,6 +2,33 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
 
+## [0.1.2] - 2026-10-29
+
+### Added
+
+- *Today* card on the live page: number of incidents today, how many were detected automatically, the most frequent
+  cause and the count of the last 7 days.
+- Setting to keep automatic detection for freezes and game hitches but not for ping spikes and packet loss
+  (*Settings → General*). The *Today* card suggests it when a line produces many network incidents.
+- Navigation on the left of the settings window.
+
+### Changed
+
+- The incident list in the sidebar is grouped by day (*Today*, *Yesterday*, date); the open page is highlighted.
+- One *Export…* button saves the report as HTML or Markdown.
+- The settings window checks the ping target and accepts only http(s) addresses for Ollama.
+
+### Security
+
+- The elevated driver latency helper no longer writes a marker file to `C:\ProgramData` (a folder standard users can
+  write to, so the file could have been redirected by a link); the marker is kept under `HKLM`. The helper refuses
+  pipe names it did not get from WhyLag and stops if another process already owns the pipe.
+- Router discovery (UPnP) only talks to the device that answered, only on the local network, without following
+  redirects and without DTD processing.
+- Updates and release links are only accepted when they point into this repository on github.com over https;
+  links are only opened when they are web links.
+- Incident ids are checked before they are used as file names; the HTML export encodes every value.
+
 ## [0.1.1] - 2026-10-28
 
 ### Added

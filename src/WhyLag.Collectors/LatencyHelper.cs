@@ -4,6 +4,7 @@ using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text.Json;
+using Microsoft.Win32;
 using WhyLag.Core;
 using static WhyLag.Core.Localization.Loc;
 
@@ -20,9 +21,17 @@ public static class LatencyHelperHost
 
     public static int Run(string[] args)
     {
-        if (args.Length < 4 || !int.TryParse(args[3], out var parentPid)) return 2;
+        if (args.Length < 4 || !int.TryParse(args[3], out var parentPid) || !IsValidPipeName(args[1])) return 2;
         var pipeName = args[1];
-        var userSid = new SecurityIdentifier(args[2]);
+        SecurityIdentifier userSid;
+        try
+        {
+            userSid = new SecurityIdentifier(args[2]);
+        }
+        catch (ArgumentException)
+        {
+            return 2;
+        }
         using var identity = WindowsIdentity.GetCurrent();
         if (!new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator)) return 3;
 
@@ -36,19 +45,19 @@ public static class LatencyHelperHost
             return 4;
         }
 
-        // A helper that was killed leaves the kernel trace running; its marker file tells us it was ours.
-        var marker = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WhyLag", "latency-helper.pid");
-        if (File.Exists(marker) && int.TryParse(File.ReadAllText(marker), out var oldPid) && !IsRunning(oldPid))
+        // A helper that was killed leaves the kernel trace running; its marker tells us it was ours. The marker
+        // lives under HKLM, which only administrators can change – a file in a folder that standard users can
+        // write to could be redirected to another file by a link.
+        if (ReadMarker() is { } oldPid && !IsRunning(oldPid))
             KernelLatencyTracer.StopKernelLogger();
 
         using var tracer = new KernelLatencyTracer();
         tracer.Start();
-        Directory.CreateDirectory(Path.GetDirectoryName(marker)!);
-        File.WriteAllText(marker, Environment.ProcessId.ToString());
+        WriteMarker(Environment.ProcessId);
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
             tracer.Dispose();
-            File.Delete(marker);
+            WriteMarker(null);
         };
 
         var security = new PipeSecurity();
@@ -63,16 +72,29 @@ public static class LatencyHelperHost
         // The helper serves exactly one WhyLag recorder. If nobody connects (or reconnects) in time, the recorder
         // was restarted or closed, so the helper ends and frees the kernel trace.
         var connectTimeout = TimeSpan.FromSeconds(60);
+        var failures = 0;
         while (!exit.IsCancellationRequested)
         {
-            using var pipe = NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, 1, PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous, 0, 0, security);
+            NamedPipeServerStream pipe;
+            try
+            {
+                // FirstPipeInstance: if another process already created a pipe with this name, the helper stops
+                // instead of sharing it.
+                pipe = NamedPipeServerStreamAcl.Create(pipeName, PipeDirection.Out, 1, PipeTransmissionMode.Byte,
+                    PipeOptions.Asynchronous | PipeOptions.FirstPipeInstance, 0, 0, security);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                break;
+            }
+            using var owned = pipe;
             try
             {
                 using var wait = CancellationTokenSource.CreateLinkedTokenSource(exit.Token);
                 wait.CancelAfter(connectTimeout);
                 pipe.WaitForConnectionAsync(wait.Token).GetAwaiter().GetResult();
                 connectTimeout = TimeSpan.FromSeconds(10);
+                failures = 0;
                 using var writer = new StreamWriter(pipe) { AutoFlush = true };
                 tracer.TakeSecond(); // discard what accumulated while nobody listened
                 while (!exit.IsCancellationRequested && pipe.IsConnected)
@@ -88,11 +110,47 @@ public static class LatencyHelperHost
             catch (IOException)
             {
                 // The client went away; give it a short chance to reconnect.
+                if (++failures > 5) break;
+                exit.Token.WaitHandle.WaitOne(500);
             }
         }
         tracer.Dispose();
-        File.Delete(marker);
+        WriteMarker(null);
         return 0;
+    }
+
+    private const string MarkerKey = @"SOFTWARE\WhyLag";
+    private const string MarkerValue = "LatencyHelperPid";
+
+    /// <summary>Pipe names are created by WhyLag as "WhyLag.Latency.&lt;guid&gt;".</summary>
+    internal static bool IsValidPipeName(string name) =>
+        name.StartsWith("WhyLag.Latency.", StringComparison.Ordinal) && name.Length == 47 && name[15..].All(Uri.IsHexDigit);
+
+    private static int? ReadMarker()
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(MarkerKey);
+            return key?.GetValue(MarkerValue) as int?;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return null;
+        }
+    }
+
+    private static void WriteMarker(int? pid)
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.CreateSubKey(MarkerKey);
+            if (pid is { } value) key.SetValue(MarkerValue, value, RegistryValueKind.DWord);
+            else key.DeleteValue(MarkerValue, throwOnMissingValue: false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // Only used to clean up after a crash.
+        }
     }
 
     private static bool IsRunning(int pid)

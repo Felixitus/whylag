@@ -7,7 +7,13 @@ public sealed class IncidentStore(string? directory = null)
 {
     public string Directory { get; } = directory ?? AppPaths.IncidentsDir;
 
-    public string PathFor(string id) => System.IO.Path.Combine(Directory, $"{id}.json");
+    /// <summary>The file of an incident. Ids are made of letters, digits, '-' and '_' only; anything else is rejected.</summary>
+    public string PathFor(string id) => IsValidId(id)
+        ? System.IO.Path.Combine(Directory, $"{id}.json")
+        : throw new ArgumentException("Invalid incident id.", nameof(id));
+
+    public static bool IsValidId(string? id) =>
+        !string.IsNullOrEmpty(id) && id.Length <= 100 && id.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_');
 
     public void Save(Incident incident)
     {
@@ -18,7 +24,7 @@ public sealed class IncidentStore(string? directory = null)
         File.Move(tmp, path, overwrite: true);
     }
 
-    public Incident? Load(string id) => LoadFile(PathFor(id));
+    public Incident? Load(string id) => IsValidId(id) ? LoadFile(PathFor(id)) : null;
 
     public static Incident? LoadFile(string path)
     {
@@ -48,6 +54,7 @@ public sealed class IncidentStore(string? directory = null)
 
     public void Delete(string id)
     {
+        if (!IsValidId(id)) return;
         var path = PathFor(id);
         if (File.Exists(path)) File.Delete(path);
     }

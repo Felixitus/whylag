@@ -108,8 +108,16 @@ public partial class App : Application
         _window?.RefreshStatus();
     }
 
-    public static void OpenUrl(string url) =>
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+    /// <summary>Opens a web page in the default browser. Anything that is not an http(s) link is ignored.</summary>
+    public static void OpenUrl(string url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp))
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+    }
+
+    /// <summary>Opens a file WhyLag wrote itself (e.g. an exported report) with its default program.</summary>
+    public static void OpenFile(string path) =>
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
 
     /// <summary>Shows or hides the small always-on-top overlay with fps, ping and load.</summary>
     public void ToggleOverlay(bool show)

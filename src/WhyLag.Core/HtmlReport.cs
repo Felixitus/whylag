@@ -43,9 +43,9 @@ public static class HtmlReport
 
         foreach (var f in incident.Findings)
         {
-            sb.Append($"<div class=\"card\"><span class=\"chip\">{E(T($"category.{f.Category}"))}</span> <span class=\"muted\">{f.Id} · {E(T("ui.rulematch", f.Confidence.ToString("P0", Culture)))}</span>");
+            sb.Append($"<div class=\"card\"><span class=\"chip\">{E(T($"category.{f.Category}"))}</span> <span class=\"muted\">{E(f.Id)} · {E(T("ui.rulematch", f.Confidence.ToString("P0", Culture)))}</span>");
             sb.Append($"<h3>{E(f.Title)}</h3><p>{E(f.Summary)}</p><table>");
-            foreach (var e in f.Evidence) sb.Append($"<tr><td class=\"mono\">{e.Id}</td><td class=\"mono\">{e.Timestamp.ToLocalTime():HH:mm:ss}</td><td>{E(e.Description)}</td></tr>");
+            foreach (var e in f.Evidence) sb.Append($"<tr><td class=\"mono\">{E(e.Id)}</td><td class=\"mono\">{e.Timestamp.ToLocalTime():HH:mm:ss}</td><td>{E(e.Description)}</td></tr>");
             sb.Append("</table>");
             if (f.Checks.Count > 0) sb.Append("<ul>").Append(string.Concat(f.Checks.Select(c => $"<li>{E(c)}</li>"))).Append("</ul>");
             sb.Append("</div>");
@@ -63,7 +63,7 @@ public static class HtmlReport
         if (incident.Explanation is { } ai)
         {
             sb.Append($"<div class=\"card\"><h3>{E(T("report.ai.title", ai.Model))}</h3><p class=\"muted\">{E(T("report.ai.note"))}</p><p><b>{E(ai.Summary)}</b></p><ul>");
-            foreach (var item in ai.Items) sb.Append($"<li><b>{item.FindingId}</b>: {E(item.Explanation)} <span class=\"muted\">[{string.Join(", ", item.EvidenceIds)}]</span></li>");
+            foreach (var item in ai.Items) sb.Append($"<li><b>{E(item.FindingId)}</b>: {E(item.Explanation)} <span class=\"muted\">[{E(string.Join(", ", item.EvidenceIds))}]</span></li>");
             sb.Append("</ul></div>");
         }
         sb.Append($"<p class=\"muted\">{E(T("report.disclaimer"))}</p></main></body></html>");

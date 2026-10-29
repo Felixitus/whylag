@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using WhyLag.Core;
 
@@ -15,7 +16,11 @@ public sealed class RouterSource : IMetricSource
 {
     private const string WanCommon = "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1";
     private readonly CancellationTokenSource _cts = new();
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(3) };
+    private readonly HttpClient _http = new(new SocketsHttpHandler { AllowAutoRedirect = false })
+    {
+        Timeout = TimeSpan.FromSeconds(3),
+        MaxResponseContentBufferSize = 256 * 1024,
+    };
     private readonly List<string> _warnings = new();
     private volatile Sample? _latest;
     private Uri? _control;
@@ -78,7 +83,7 @@ public sealed class RouterSource : IMetricSource
         request.Headers.Add("SOAPAction", $"\"{WanCommon}#{action}\"");
         using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        var xml = XDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
+        var xml = ParseXml(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
         var value = xml.Descendants().First(e => e.Name.LocalName == field).Value;
         return uint.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
     }
@@ -101,7 +106,8 @@ public sealed class RouterSource : IMetricSource
                 var reply = await udp.ReceiveAsync(timeout.Token).ConfigureAwait(false);
                 var text = Encoding.ASCII.GetString(reply.Buffer);
                 var location = text.Split("\r\n").FirstOrDefault(l => l.StartsWith("LOCATION:", StringComparison.OrdinalIgnoreCase))?[9..].Trim();
-                if (location is null || !Uri.TryCreate(location, UriKind.Absolute, out var url)) continue;
+                if (location is null || !Uri.TryCreate(location, UriKind.Absolute, out var url)
+                    || !IsDeviceUrl(url, reply.RemoteEndPoint.Address)) continue;
                 if (await FindControlUrlAsync(url, ct).ConfigureAwait(false) is { } control) return control;
             }
         }
@@ -113,11 +119,35 @@ public sealed class RouterSource : IMetricSource
 
     private async Task<Uri?> FindControlUrlAsync(Uri description, CancellationToken ct)
     {
-        var xml = XDocument.Parse(await _http.GetStringAsync(description, ct).ConfigureAwait(false));
+        var xml = ParseXml(await _http.GetStringAsync(description, ct).ConfigureAwait(false));
         var service = xml.Descendants().FirstOrDefault(e => e.Name.LocalName == "service"
             && e.Elements().Any(c => c.Name.LocalName == "serviceType" && c.Value == WanCommon));
         var path = service?.Elements().FirstOrDefault(c => c.Name.LocalName == "controlURL")?.Value;
-        return path is null ? null : new Uri(description, path);
+        if (path is null) return null;
+        var control = new Uri(description, path);
+        // The control URL must stay on the device that answered; anything else is ignored.
+        return control.Scheme == Uri.UriSchemeHttp && control.Host == description.Host ? control : null;
+    }
+
+    /// <summary>
+    /// Accepts only plain http URLs that point at the device that sent the SSDP reply, and only when that device is
+    /// on the local network. A device must not be able to make WhyLag request other hosts.
+    /// </summary>
+    internal static bool IsDeviceUrl(Uri url, IPAddress sender) =>
+        url.Scheme == Uri.UriSchemeHttp && IPAddress.TryParse(url.Host, out var host) && host.Equals(sender) && IsLocal(sender);
+
+    internal static bool IsLocal(IPAddress address)
+    {
+        if (address.AddressFamily != AddressFamily.InterNetwork) return address.IsIPv6LinkLocal;
+        var b = address.GetAddressBytes();
+        return b[0] == 10 || (b[0] == 172 && b[1] is >= 16 and <= 31) || (b[0] == 192 && b[1] == 168) || (b[0] == 169 && b[1] == 254);
+    }
+
+    /// <summary>Parses device XML without DTD processing.</summary>
+    internal static XDocument ParseXml(string text)
+    {
+        using var reader = XmlReader.Create(new StringReader(text), new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
+        return XDocument.Load(reader);
     }
 
     public void Dispose()

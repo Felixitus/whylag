@@ -17,7 +17,7 @@ namespace WhyLag.App;
 /// </summary>
 internal static class UpdateChecker
 {
-    public const string Repository = "Felixitus/whylag";
+    public const string Repository = Updates.Repository;
 
     public static Version Current => typeof(UpdateChecker).Assembly.GetName().Version ?? new Version(0, 0);
 

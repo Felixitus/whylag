@@ -38,6 +38,15 @@ public class SpikeDetectorTests
     }
 
     [Fact]
+    public void Network_detection_can_be_turned_off()
+    {
+        var detector = new SpikeDetector { DetectNetwork = false };
+        for (var i = 0; i < 40; i++) detector.Feed(Ping(i, 30 + i % 5));
+        Assert.Null(detector.Feed(Ping(40, 220)));
+        Assert.Equal(MetricKeys.TickGapMs, detector.Feed(Tick(41, MetricKeys.TickGapMs, 2500))?.Metric);
+    }
+
+    [Fact]
     public void Ignores_normal_jitter()
     {
         var detector = new SpikeDetector();

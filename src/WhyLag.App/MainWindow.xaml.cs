@@ -12,7 +12,13 @@ using static WhyLag.Core.Localization.Loc;
 
 namespace WhyLag.App;
 
-public sealed record IncidentListItem(string Id, string When, string Trigger, string Headline, FindingCategory? Category);
+/// <summary>One entry of the sidebar list. <see cref="Day"/> groups the list ("Today", "Yesterday", a date).</summary>
+public sealed record IncidentListItem(string Id, string When, string Trigger, string Headline, FindingCategory? Category,
+    DateTime Local, bool Automatic, string Day)
+{
+    /// <summary>What screen readers announce for the entry.</summary>
+    public override string ToString() => $"{When} · {Trigger} · {Headline}";
+}
 
 public sealed record EvidenceRow(string Id, string Time, string Text);
 
@@ -59,6 +65,8 @@ public partial class MainWindow : Window
         Logo.Source = Icon;
         Language = System.Windows.Markup.XmlLanguage.GetLanguage(Culture.IetfLanguageTag);
         IncidentList.ItemsSource = _items;
+        System.Windows.Data.CollectionViewSource.GetDefaultView(_items).GroupDescriptions
+            .Add(new System.Windows.Data.PropertyGroupDescription(nameof(IncidentListItem.Day)));
 
         _tiles =
         [
@@ -168,23 +176,49 @@ public partial class MainWindow : Window
     {
         IncidentCount.Text = _items.Count.ToString(Culture);
         NoIncidents.Visibility = _items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        RefreshToday();
+    }
+
+    /// <summary>The "Today" card on the live page: how many incidents, how many automatic, the most frequent cause.</summary>
+    private void RefreshToday()
+    {
+        var today = _items.Where(i => i.Local.Date == DateTime.Today && !i.Id.EndsWith("-demo", StringComparison.Ordinal)).ToList();
+        var top = today.Where(i => i.Category is not null).GroupBy(i => i.Headline).OrderByDescending(g => g.Count()).FirstOrDefault();
+        TodayText.Text = today.Count == 0 ? T("ui.today.none") : T("ui.today.text", today.Count, today.Count(i => i.Automatic));
+        if (top is not null) TodayText.Text += " " + T("ui.today.top", top.Key, top.Count());
+        if (Host.Settings is { AutoDetect: true, AutoDetectNetwork: true } && today.Count(i => i.Automatic && i.Category == FindingCategory.Network) >= 10)
+            TodayText.Text += "\n" + T("ui.today.noisy");
+        TodayWeek.Text = T("ui.today.week", _items.Count(i => i.Local >= DateTime.Today.AddDays(-6) && !i.Id.EndsWith("-demo", StringComparison.Ordinal)));
     }
 
     private static IncidentListItem ToItem(Incident i)
     {
         var local = i.TriggeredAt.ToLocalTime();
-        var when = local.Date == DateTime.Today ? local.ToString("HH:mm:ss", Culture) : local.ToString("g", Culture);
         var trigger = i.Id.EndsWith("-demo", StringComparison.Ordinal) ? T("trigger.short.demo") : T($"trigger.short.{i.Trigger}");
         var top = i.Findings.FirstOrDefault();
-        return new IncidentListItem(i.Id, when, trigger, top?.Title ?? T("report.none.title"), top?.Category);
+        return new IncidentListItem(i.Id, local.ToString("HH:mm:ss", Culture), trigger, top?.Title ?? T("report.none.title"), top?.Category,
+            local.DateTime, i.Trigger == TriggerKind.Automatic, DayLabel(local.DateTime));
     }
+
+    private static string DayLabel(DateTime local) =>
+        local.Date == DateTime.Today ? T("ui.day.today")
+        : local.Date == DateTime.Today.AddDays(-1) ? T("ui.day.yesterday")
+        : local.ToString("D", Culture);
 
     private void OnIncidentAdded(Incident incident)
     {
-        _items.Insert(0, ToItem(incident));
+        var item = ToItem(incident);
+        if (_items.Count > 0 && _items[0].Local.Date != item.Local.Date)
+        {
+            // First incident of a new day: relabel the days ("Today" became "Yesterday") and put the new group on top.
+            var all = _items.Select(i => i with { Day = DayLabel(i.Local) }).Prepend(item).ToList();
+            _items.Clear();
+            foreach (var i in all) _items.Add(i);
+        }
+        else _items.Insert(0, item);
         while (_items.Count > Math.Max(Host.Settings.KeepIncidents, 1)) _items.RemoveAt(_items.Count - 1);
         UpdateCount();
-        IncidentList.SelectedIndex = 0;
+        IncidentList.SelectedItem = item;
     }
 
     private void IncidentList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -197,6 +231,20 @@ public partial class MainWindow : Window
     private void ShowView(UIElement view)
     {
         foreach (var v in new UIElement[] { LiveView, PatternsView, ReportView, TableView, SessionsView }) v.Visibility = v == view ? Visibility.Visible : Visibility.Collapsed;
+        // Mark the page that is open in the sidebar.
+        foreach (var (button, page) in new (Button, UIElement)[] { (LiveButton, LiveView), (PatternsButton, PatternsView), (SessionsButton, SessionsView), (TableButton, TableView) })
+        {
+            if (page == view)
+            {
+                button.SetResourceReference(BackgroundProperty, "SubtleFillColorSecondaryBrush");
+                button.FontWeight = FontWeights.SemiBold;
+            }
+            else
+            {
+                button.ClearValue(BackgroundProperty);
+                button.ClearValue(FontWeightProperty);
+            }
+        }
     }
 
     private void Live_Click(object sender, RoutedEventArgs e) => ShowLive();
@@ -206,6 +254,7 @@ public partial class MainWindow : Window
         _current = null;
         IncidentList.SelectedItem = null;
         ShowView(LiveView);
+        RefreshToday();
         RefreshStatus();
     }
 
@@ -361,15 +410,6 @@ public partial class MainWindow : Window
     private void UpdateNotes_Click(object sender, RoutedEventArgs e)
     {
         if (Host.AvailableUpdate is { } update) App.OpenUrl(update.PageUrl);
-    }
-
-    private void ExportHtml_Click(object sender, RoutedEventArgs e)
-    {
-        if (_current is null) return;
-        var dialog = new SaveFileDialog { FileName = $"whylag-{_current.Id}.html", Filter = "HTML|*.html" };
-        if (dialog.ShowDialog(this) != true) return;
-        File.WriteAllText(dialog.FileName, HtmlReport.Build(_current));
-        App.OpenUrl(dialog.FileName);
     }
 
     private void OpenPatternIncident_Click(object sender, RoutedEventArgs e)
@@ -582,8 +622,15 @@ public partial class MainWindow : Window
     private void Export_Click(object sender, RoutedEventArgs e)
     {
         if (_current is null) return;
-        var dialog = new SaveFileDialog { FileName = $"whylag-{_current.Id}.md", Filter = "Markdown|*.md|Text|*.txt" };
-        if (dialog.ShowDialog(this) == true) File.WriteAllText(dialog.FileName, ReportBuilder.Markdown(_current, anonymize: true));
+        // One export for both formats: HTML (with timeline, opens in the browser) or Markdown (for forums and issues).
+        var dialog = new SaveFileDialog { FileName = $"whylag-{_current.Id}", Filter = "HTML|*.html|Markdown|*.md|Text|*.txt" };
+        if (dialog.ShowDialog(this) != true) return;
+        if (dialog.FilterIndex == 1)
+        {
+            File.WriteAllText(dialog.FileName, HtmlReport.Build(_current));
+            App.OpenFile(dialog.FileName);
+        }
+        else File.WriteAllText(dialog.FileName, ReportBuilder.Markdown(_current, anonymize: true));
     }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)

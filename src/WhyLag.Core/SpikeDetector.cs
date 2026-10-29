@@ -31,6 +31,9 @@ public sealed class SpikeDetector
     /// <summary>Programs the user chose to ignore ("Ignore hitches in …").</summary>
     public IReadOnlySet<string> IgnoredApps { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>When false, ping spikes and packet loss are still recorded but start no automatic incident.</summary>
+    public bool DetectNetwork { get; set; } = true;
+
     public SpikeSignal? Feed(Tick tick)
     {
         // Every detector sees every tick, so their histories stay complete even when another one fires.
@@ -42,6 +45,7 @@ public sealed class SpikeDetector
 
         if (tick.Get(MetricKeys.TickGapMs) is >= 2000 and var gap)
             return new SpikeSignal(tick.Timestamp, MetricKeys.TickGapMs, gap, 0, T("spike.stall", Stats.Round(gap)));
+        if (!DetectNetwork) return frames;
         return frames ?? internet ?? router ?? (_targetLostStreak == 2
             ? new SpikeSignal(tick.Timestamp, MetricKeys.PingTargetLost, 2, 0, T("spike.loss"))
             : null);

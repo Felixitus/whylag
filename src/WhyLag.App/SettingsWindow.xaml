@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:WhyLag.App"
-        Title="{local:Tr set.title}" Width="740" Height="840" MinHeight="520" MinWidth="580"
+        Title="{local:Tr set.title}" Width="940" Height="840" MinHeight="520" MinWidth="760"
         WindowStartupLocation="CenterOwner">
     <Window.Resources>
         <Style x:Key="SectionIcon" TargetType="Border">
@@ -20,6 +20,14 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
         </Style>
+        <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
     </Window.Resources>
     <DockPanel>
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource LayerFillColorDefaultBrush}"
@@ -29,12 +37,35 @@
                 <Button Content="{local:Tr set.save}" Style="{DynamicResource AccentButtonStyle}" IsDefault="True" Padding="20,6" Click="Save_Click"/>
             </StackPanel>
         </Border>
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Border DockPanel.Dock="Left" Width="200" Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+            <StackPanel Margin="12,20,12,12">
+                <TextBlock Text="{local:Tr set.title}" Style="{StaticResource Title}" Margin="8,0,0,16"/>
+                <Button Style="{StaticResource NavButton}" Tag="CardGeneral" Click="Nav_Click" AutomationProperties.Name="{local:Tr set.general}">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7C8;" Style="{StaticResource Icon}" Margin="0,0,10,0"/><TextBlock Text="{local:Tr set.general}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource NavButton}" Tag="CardFrames" Click="Nav_Click" AutomationProperties.Name="{local:Tr set.frames}">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7FC;" Style="{StaticResource Icon}" Margin="0,0,10,0"/><TextBlock Text="{local:Tr set.frames}" TextTrimming="CharacterEllipsis"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource NavButton}" Tag="CardLatency" Click="Nav_Click" AutomationProperties.Name="{local:Tr set.latency}">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE950;" Style="{StaticResource Icon}" Margin="0,0,10,0"/><TextBlock Text="{local:Tr set.latency}" TextTrimming="CharacterEllipsis"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource NavButton}" Tag="CardNetwork" Click="Nav_Click" AutomationProperties.Name="{local:Tr set.network}">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE701;" Style="{StaticResource Icon}" Margin="0,0,10,0"/><TextBlock Text="{local:Tr set.network}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource NavButton}" Tag="CardAi" Click="Nav_Click" AutomationProperties.Name="{local:Tr set.ai}">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE945;" Style="{StaticResource Icon}" Margin="0,0,10,0"/><TextBlock Text="{local:Tr set.ai}"/></StackPanel>
+                </Button>
+                <Button Style="{StaticResource NavButton}" Tag="CardData" Click="Nav_Click" AutomationProperties.Name="{local:Tr set.data}">
+                    <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE838;" Style="{StaticResource Icon}" Margin="0,0,10,0"/><TextBlock Text="{local:Tr set.data}"/></StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="24,20,24,12">
-                <TextBlock Text="{local:Tr set.title}" Style="{StaticResource Display}" Margin="0,0,0,16"/>
 
                 <!-- General -->
-                <Border Style="{StaticResource Card}">
+                <Border x:Name="CardGeneral" Style="{StaticResource Card}">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource SectionIcon}">
                             <TextBlock Text="&#xE7C8;" Style="{StaticResource Icon}" HorizontalAlignment="Center"/>
@@ -69,6 +100,9 @@
                             <CheckBox x:Name="AutoDetect" Margin="0,8,0,0">
                                 <TextBlock Text="{local:Tr set.autodetect}" TextWrapping="Wrap"/>
                             </CheckBox>
+                            <CheckBox x:Name="AutoDetectNetwork" Margin="28,4,0,0" IsEnabled="{Binding IsChecked, ElementName=AutoDetect}">
+                                <TextBlock Text="{local:Tr set.autodetect.network}" TextWrapping="Wrap"/>
+                            </CheckBox>
                             <CheckBox x:Name="UpdateCheck" Margin="0,4,0,0">
                                 <TextBlock Text="{local:Tr set.updates}" TextWrapping="Wrap"/>
                             </CheckBox>
@@ -86,7 +120,7 @@
                 </Border>
 
                 <!-- Frame times -->
-                <Border Style="{StaticResource Card}">
+                <Border x:Name="CardFrames" Style="{StaticResource Card}">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource SectionIcon}">
                             <TextBlock Text="&#xE7FC;" Style="{StaticResource Icon}" HorizontalAlignment="Center"/>
@@ -110,7 +144,7 @@
                 </Border>
 
                 <!-- Driver latency -->
-                <Border Style="{StaticResource Card}">
+                <Border x:Name="CardLatency" Style="{StaticResource Card}">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource SectionIcon}">
                             <TextBlock Text="&#xE950;" Style="{StaticResource Icon}" HorizontalAlignment="Center"/>
@@ -126,7 +160,7 @@
                 </Border>
 
                 <!-- Network -->
-                <Border Style="{StaticResource Card}">
+                <Border x:Name="CardNetwork" Style="{StaticResource Card}">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource SectionIcon}">
                             <TextBlock Text="&#xE701;" Style="{StaticResource Icon}" HorizontalAlignment="Center"/>
@@ -149,7 +183,7 @@
                 </Border>
 
                 <!-- Local AI -->
-                <Border Style="{StaticResource Card}" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}" BorderThickness="1.5">
+                <Border x:Name="CardAi" Style="{StaticResource Card}" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}" BorderThickness="1.5">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource SectionIcon}" Background="{DynamicResource AccentFillColorDefaultBrush}">
                             <TextBlock Text="&#xEA80;" Style="{StaticResource Icon}" HorizontalAlignment="Center" Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}"/>
@@ -192,7 +226,7 @@
                 </Border>
 
                 <!-- Data -->
-                <Border Style="{StaticResource Card}">
+                <Border x:Name="CardData" Style="{StaticResource Card}">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Style="{StaticResource SectionIcon}">
                             <TextBlock Text="&#xE838;" Style="{StaticResource Icon}" HorizontalAlignment="Center"/>

@@ -11,6 +11,15 @@
             <Setter Property="Margin" Value="4,0"/>
             <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
         </Style>
+        <!-- Sidebar navigation: flat buttons; the page that is open gets a filled background (see MainWindow.ShowView). -->
+        <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -47,25 +56,25 @@
                     </Button>
                     <TextBlock x:Name="HotkeyHint" Style="{StaticResource Caption}" TextAlignment="Center" Margin="0,6,0,0"/>
 
-                    <Button x:Name="LiveButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,16,0,0" Padding="12,8" Click="Live_Click" AutomationProperties.Name="{local:Tr ui.live}">
+                    <Button x:Name="LiveButton" Style="{StaticResource NavButton}" Margin="0,16,0,0" Click="Live_Click" AutomationProperties.Name="{local:Tr ui.live}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xEC4A;" Style="{StaticResource Icon}" Margin="0,0,10,0"/>
                             <TextBlock Text="{local:Tr ui.live}"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="PatternsButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,6,0,0" Padding="12,8" Click="Patterns_Click" AutomationProperties.Name="{local:Tr ui.patterns}">
+                    <Button x:Name="PatternsButton" Style="{StaticResource NavButton}" Click="Patterns_Click" AutomationProperties.Name="{local:Tr ui.patterns}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE81C;" Style="{StaticResource Icon}" Margin="0,0,10,0"/>
                             <TextBlock Text="{local:Tr ui.patterns}"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="SessionsButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,6,0,0" Padding="12,8" Click="Sessions_Click" AutomationProperties.Name="{local:Tr ui.sessions}">
+                    <Button x:Name="SessionsButton" Style="{StaticResource NavButton}" Click="Sessions_Click" AutomationProperties.Name="{local:Tr ui.sessions}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE7FC;" Style="{StaticResource Icon}" Margin="0,0,10,0"/>
                             <TextBlock Text="{local:Tr ui.sessions}"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="TableButton" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,6,0,0" Padding="12,8" Click="Table_Click" AutomationProperties.Name="{local:Tr ui.table}">
+                    <Button x:Name="TableButton" Style="{StaticResource NavButton}" Click="Table_Click" AutomationProperties.Name="{local:Tr ui.table}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE8FD;" Style="{StaticResource Icon}" Margin="0,0,10,0"/>
                             <TextBlock Text="{local:Tr ui.table}"/>
@@ -104,7 +113,16 @@
 
                 <Grid>
                     <ListBox x:Name="IncidentList" BorderThickness="0" Background="Transparent" SelectionChanged="IncidentList_SelectionChanged"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizingWhenGrouping="True">
+                        <ListBox.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" Style="{StaticResource Overline}" Margin="4,12,0,2"/>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListBox.GroupStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="0,4">
@@ -146,6 +164,20 @@
                 <TextBlock Text="{local:Tr ui.live}" Style="{StaticResource Display}"/>
                 <TextBlock x:Name="LiveSubtitle" Style="{StaticResource Caption}" FontSize="13" Margin="0,4,0,20"
                            Text="{local:Tr ui.live.subtitle}"/>
+                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="{local:Tr ui.patterns}" Click="Patterns_Click" Padding="12,6" Margin="0,0,8,0"/>
+                            <Button Content="{local:Tr ui.today.all}" Click="Table_Click" Padding="12,6"/>
+                        </StackPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="&#xE787;" Style="{StaticResource Icon}" FontSize="20" Margin="0,2,14,0" VerticalAlignment="Top"/>
+                        <StackPanel>
+                            <TextBlock Text="{local:Tr ui.today.title}" Style="{StaticResource Subtitle}"/>
+                            <TextBlock x:Name="TodayText" Style="{StaticResource Body}" TextWrapping="Wrap" Margin="0,4,12,0"/>
+                            <TextBlock x:Name="TodayWeek" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
                 <UniformGrid x:Name="LiveTiles" Columns="4"/>
                 <Border Style="{StaticResource Card}" Margin="0,12,0,0">
                     <DockPanel>
@@ -541,16 +573,10 @@
                             <TextBlock Text="{local:Tr ui.copy}"/>
                         </StackPanel>
                     </Button>
-                    <Button Click="Export_Click" AutomationProperties.Name="{local:Tr ui.export}" Padding="12,7" Margin="0,0,8,8">
+                    <Button Click="Export_Click" AutomationProperties.Name="{local:Tr ui.export}" ToolTip="{local:Tr ui.export.tip}" Padding="12,7" Margin="0,0,8,8">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE78C;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
                             <TextBlock Text="{local:Tr ui.export}"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Click="ExportHtml_Click" AutomationProperties.Name="{local:Tr ui.exporthtml}" Padding="12,7" Margin="0,0,8,8">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE774;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
-                            <TextBlock Text="{local:Tr ui.exporthtml}"/>
                         </StackPanel>
                     </Button>
                     <Button Click="OpenFolder_Click" AutomationProperties.Name="{local:Tr ui.openfolder}" Padding="12,7" Margin="0,0,8,8">

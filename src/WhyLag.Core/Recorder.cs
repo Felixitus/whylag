@@ -42,6 +42,7 @@ public sealed class Recorder : IDisposable
         _store = store;
         _ticks = new RingBuffer<Tick>(Math.Clamp(settings.BufferMinutes, 1, 120) * 60);
         _detector.IgnoredApps = new HashSet<string>(settings.IgnoredApps, StringComparer.OrdinalIgnoreCase);
+        _detector.DetectNetwork = settings.AutoDetectNetwork;
     }
 
     public event Action<Incident>? IncidentCaptured;
@@ -62,6 +63,7 @@ public sealed class Recorder : IDisposable
     {
         _settings = settings;
         _detector.IgnoredApps = new HashSet<string>(settings.IgnoredApps, StringComparer.OrdinalIgnoreCase);
+        _detector.DetectNetwork = settings.AutoDetectNetwork;
     }
     public int BufferedSeconds => _ticks.Count;
     public Tick? LatestTick => _ticks.Latest();

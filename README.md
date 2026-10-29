@@ -64,7 +64,8 @@ automatically when WhyLag starts (*Settings → General*). The portable version 
 2. When something lags, press **Ctrl+Alt+L** and click the notification.
 3. **Recurring patterns** collects causes that keep coming back; **All incidents** lists everything in a table.
 4. Too many automatic incidents from one program? Use *Ignore hitches in …* in the report, or pause detection for an
-   hour from the tray menu.
+   hour from the tray menu. A line that spikes all day? Turn off automatic detection for network spikes in
+   *Settings → General* – ping and packet loss are still recorded and shown in every report.
 
 Shortcuts in the window: `F5` refresh, `Del` delete the open incident, `Ctrl+C` copy its report.
 

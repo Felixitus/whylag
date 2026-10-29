@@ -45,6 +45,7 @@ public partial class SettingsWindow : Window
         BufferMinutes.Text = Result.BufferMinutes.ToString();
         KeepIncidents.Text = Result.KeepIncidents.ToString();
         AutoDetect.IsChecked = Result.AutoDetect;
+        AutoDetectNetwork.IsChecked = Result.AutoDetectNetwork;
         StartWithWindows.IsChecked = StartupRegistration.IsEnabled();
         PingEnabled.IsChecked = Result.PingEnabled;
         PingTarget.Text = Result.PingTarget;
@@ -214,13 +215,22 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>Scrolls to the section named in the button's Tag.</summary>
+    private void Nav_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string name } && FindName(name) is FrameworkElement card)
+            Scroller.ScrollToVerticalOffset(Scroller.VerticalOffset + card.TranslatePoint(new Point(), Scroller).Y - 20);
+    }
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         string? error = null;
         if (!HotkeyManager.TryParse(Hotkey.Text, out _, out _)) error = T("set.err.hotkey");
         else if (!int.TryParse(BufferMinutes.Text, out var m) || m is < 1 or > 120) error = T("set.err.buffer");
         else if (!int.TryParse(KeepIncidents.Text, out var k) || k is < 1 or > 1000) error = T("set.err.keep");
-        else if (AiEnabled.IsChecked == true && !Uri.TryCreate(AiEndpoint.Text.Trim(), UriKind.Absolute, out _)) error = T("set.err.address");
+        else if (PingEnabled.IsChecked == true && Uri.CheckHostName(PingTarget.Text.Trim()) == UriHostNameType.Unknown) error = T("set.err.target");
+        else if (AiEnabled.IsChecked == true && (!Uri.TryCreate(AiEndpoint.Text.Trim(), UriKind.Absolute, out var ai) || ai.Scheme is not ("http" or "https")))
+            error = T("set.err.address");
         if (error is not null)
         {
             MessageBox.Show(this, error, "WhyLag");
@@ -242,6 +252,7 @@ public partial class SettingsWindow : Window
         Result.BufferMinutes = int.Parse(BufferMinutes.Text);
         Result.KeepIncidents = int.Parse(KeepIncidents.Text);
         Result.AutoDetect = AutoDetect.IsChecked == true;
+        Result.AutoDetectNetwork = AutoDetectNetwork.IsChecked == true;
         if (StartWithWindows.IsChecked != StartupRegistration.IsEnabled()) StartupRegistration.Apply(StartWithWindows.IsChecked == true);
         Result.PingEnabled = PingEnabled.IsChecked == true;
         Result.PingTarget = PingTarget.Text.Trim();

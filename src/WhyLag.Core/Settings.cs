@@ -8,6 +8,8 @@ public sealed class WhyLagSettings
     /// <summary>How much history is kept in memory. Nothing is written to disk unless an incident is captured.</summary>
     public int BufferMinutes { get; set; } = 10;
     public bool AutoDetect { get; set; } = true;
+    /// <summary>Also start automatic incidents on ping spikes and packet loss. Some lines spike all day long.</summary>
+    public bool AutoDetectNetwork { get; set; } = true;
     public int AutoDetectCooldownSeconds { get; set; } = 120;
     public bool PingEnabled { get; set; } = true;
     /// <summary>Internet host that is pinged once per second. This is the only external connection WhyLag makes by default.</summary>

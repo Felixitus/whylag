@@ -2,7 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:WhyLag.App"
-        Title="WhyLag" Width="1240" Height="840" MinWidth="820" MinHeight="520"
+        Title="WhyLag" Width="1320" Height="860" MinWidth="1000" MinHeight="580"
+        FontFamily="{StaticResource UiFont}" FontSize="13"
+        Background="{DynamicResource AppBackgroundBrush}"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <Style x:Key="CellText" TargetType="TextBlock">
@@ -11,590 +13,618 @@
             <Setter Property="Margin" Value="4,0"/>
             <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
         </Style>
-        <!-- Sidebar navigation: flat buttons; the page that is open gets a filled background (see MainWindow.ShowView). -->
-        <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="Margin" Value="0,4,0,0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
+        <Style x:Key="IncidentItem" TargetType="ListBoxItem">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Grid Margin="8,0,8,2">
+                            <Border x:Name="Box" CornerRadius="6" Background="Transparent" Padding="10,7">
+                                <ContentPresenter/>
+                            </Border>
+                            <Border x:Name="Bar" Width="3" Height="20" CornerRadius="1.5" HorizontalAlignment="Left"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Collapsed"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{DynamicResource HoverFillBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{DynamicResource SelectedFillBrush}"/>
+                                <Setter TargetName="Bar" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="208"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- ───────── Sidebar ───────── -->
-        <Border Grid.Column="0" Background="{DynamicResource LayerFillColorDefaultBrush}"
-                BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
-            <DockPanel Margin="16,20,16,16">
+        <!-- ───────── Navigation ───────── -->
+        <Border Background="{DynamicResource RailBackgroundBrush}" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="10,16,10,12">
                 <StackPanel DockPanel.Dock="Top">
-                    <StackPanel Orientation="Horizontal">
-                        <Image x:Name="Logo" Width="28" Height="28" Margin="0,0,10,0"/>
+                    <StackPanel Orientation="Horizontal" Margin="8,0,0,16">
+                        <Image x:Name="Logo" Width="22" Height="22" Margin="0,0,9,0"/>
                         <TextBlock Text="WhyLag" Style="{StaticResource Title}" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <Border Margin="0,16,0,0" CornerRadius="8" Padding="12,10" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-                        <StackPanel>
+                    <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch" Padding="10,8" Click="Capture_Click"
+                            ToolTip="{local:Tr ui.capture}" AutomationProperties.Name="{local:Tr ui.capture}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE9D9;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
+                            <TextBlock Text="{local:Tr ui.capture.short}"/>
+                        </StackPanel>
+                    </Button>
+                    <TextBlock x:Name="HotkeyHint" Style="{StaticResource Overline}" FontWeight="Normal" TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,16"/>
+
+                    <RadioButton x:Name="LiveButton" Style="{StaticResource RailItem}" Checked="Live_Click" AutomationProperties.Name="{local:Tr ui.nav.overview}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xEC4A;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,10,0"/>
+                            <TextBlock Text="{local:Tr ui.nav.overview}"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="TableButton" Style="{StaticResource RailItem}" Checked="Incidents_Click" AutomationProperties.Name="{local:Tr ui.nav.incidents}">
+                        <DockPanel>
+                            <TextBlock x:Name="IncidentCount" DockPanel.Dock="Right" Style="{StaticResource Overline}" VerticalAlignment="Center"/>
                             <StackPanel Orientation="Horizontal">
-                                <Ellipse x:Name="StatusDot" Width="8" Height="8" Margin="0,0,8,0" Fill="{DynamicResource SystemFillColorSuccessBrush}"/>
-                                <TextBlock x:Name="StatusTitle" FontWeight="SemiBold"/>
+                                <TextBlock Text="&#xE8FD;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,10,0"/>
+                                <TextBlock Text="{local:Tr ui.nav.incidents}"/>
                             </StackPanel>
-                            <TextBlock x:Name="StatusDetail" Style="{StaticResource Caption}" Margin="16,2,0,0"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Button Style="{DynamicResource AccentButtonStyle}" HorizontalAlignment="Stretch" Margin="0,12,0,0" Padding="12,9" Click="Capture_Click" AutomationProperties.Name="{local:Tr ui.capture}">
+                        </DockPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="PatternsButton" Style="{StaticResource RailItem}" Checked="Patterns_Click" AutomationProperties.Name="{local:Tr ui.nav.patterns}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE9D9;" Style="{StaticResource Icon}" Margin="0,0,8,0"/>
-                            <TextBlock Text="{local:Tr ui.capture}" FontWeight="SemiBold"/>
+                            <TextBlock Text="&#xE81C;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,10,0"/>
+                            <TextBlock Text="{local:Tr ui.nav.patterns}"/>
                         </StackPanel>
-                    </Button>
-                    <TextBlock x:Name="HotkeyHint" Style="{StaticResource Caption}" TextAlignment="Center" Margin="0,6,0,0"/>
-
-                    <Button x:Name="LiveButton" Style="{StaticResource NavButton}" Margin="0,16,0,0" Click="Live_Click" AutomationProperties.Name="{local:Tr ui.live}">
+                    </RadioButton>
+                    <RadioButton x:Name="SessionsButton" Style="{StaticResource RailItem}" Checked="Sessions_Click" AutomationProperties.Name="{local:Tr ui.sessions}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xEC4A;" Style="{StaticResource Icon}" Margin="0,0,10,0"/>
-                            <TextBlock Text="{local:Tr ui.live}"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="PatternsButton" Style="{StaticResource NavButton}" Click="Patterns_Click" AutomationProperties.Name="{local:Tr ui.patterns}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE81C;" Style="{StaticResource Icon}" Margin="0,0,10,0"/>
-                            <TextBlock Text="{local:Tr ui.patterns}"/>
-                        </StackPanel>
-                    </Button>
-                    <Button x:Name="SessionsButton" Style="{StaticResource NavButton}" Click="Sessions_Click" AutomationProperties.Name="{local:Tr ui.sessions}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE7FC;" Style="{StaticResource Icon}" Margin="0,0,10,0"/>
+                            <TextBlock Text="&#xE7FC;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,10,0"/>
                             <TextBlock Text="{local:Tr ui.sessions}"/>
                         </StackPanel>
-                    </Button>
-                    <Button x:Name="TableButton" Style="{StaticResource NavButton}" Click="Table_Click" AutomationProperties.Name="{local:Tr ui.table}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8FD;" Style="{StaticResource Icon}" Margin="0,0,10,0"/>
-                            <TextBlock Text="{local:Tr ui.table}"/>
-                        </StackPanel>
-                    </Button>
-
-                    <DockPanel Margin="4,20,0,6">
-                        <Button DockPanel.Dock="Right" Click="Demo_Click" Padding="6,1" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
-                                AutomationProperties.Name="{local:Tr ui.demo}" ToolTip="{local:Tr ui.demo.tip}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE710;" Style="{StaticResource Icon}" FontSize="10" Margin="0,0,4,0"/>
-                                <TextBlock Text="{local:Tr ui.demo}"/>
-                            </StackPanel>
-                        </Button>
-                        <TextBlock x:Name="IncidentCount" DockPanel.Dock="Right" Style="{StaticResource Overline}" VerticalAlignment="Center"/>
-                        <TextBlock Text="{local:Tr ui.incidents}" Style="{StaticResource Overline}" VerticalAlignment="Center"/>
-                    </DockPanel>
+                    </RadioButton>
                 </StackPanel>
 
-                <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
-                    <Button Click="Settings_Click" Padding="10,6" AutomationProperties.Name="{local:Tr ui.settings}" HorizontalAlignment="Left">
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Button Style="{StaticResource GhostButton}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,7" Click="Settings_Click" AutomationProperties.Name="{local:Tr ui.settings}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE713;" Style="{StaticResource Icon}" Margin="0,0,8,0"/>
+                            <TextBlock Text="&#xE713;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,10,0"/>
                             <TextBlock Text="{local:Tr ui.settings}"/>
                         </StackPanel>
                     </Button>
-                    <TextBlock Style="{StaticResource Caption}" Margin="2,10,0,0">
+                    <Border Style="{StaticResource Divider}" Margin="0,8"/>
+                    <StackPanel Margin="10,0,0,8">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="StatusDot" Width="7" Height="7" Margin="0,0,8,0" Fill="{DynamicResource SystemFillColorSuccessBrush}"/>
+                            <TextBlock x:Name="StatusTitle" Style="{StaticResource Caption}" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                        </StackPanel>
+                        <TextBlock x:Name="StatusDetail" Style="{StaticResource Overline}" FontWeight="Normal" TextWrapping="Wrap" Margin="15,2,0,0"/>
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Overline}" FontWeight="Normal" Margin="10,0,0,0">
                         <Hyperlink NavigateUri="https://github.com/Felixitus/whylag" RequestNavigate="Link_RequestNavigate"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextDecorations="None"
                                    ToolTip="https://github.com/Felixitus/whylag"><Run Text="{local:Tr ui.github}"/></Hyperlink>
                     </TextBlock>
-                    <TextBlock Style="{StaticResource Caption}" Margin="2,4,0,0">
+                    <TextBlock Style="{StaticResource Overline}" FontWeight="Normal" Margin="10,3,0,0">
                         <Hyperlink NavigateUri="https://buymeacoffee.com/felixitus" RequestNavigate="Link_RequestNavigate"
-                                   ToolTip="https://buymeacoffee.com/felixitus"><Run Text="&#x2615; "/><Run Text="{local:Tr ui.coffee}"/></Hyperlink>
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextDecorations="None"
+                                   ToolTip="https://buymeacoffee.com/felixitus"><Run Text="{local:Tr ui.coffee}"/></Hyperlink>
                     </TextBlock>
                 </StackPanel>
-
-                <Grid>
-                    <ListBox x:Name="IncidentList" BorderThickness="0" Background="Transparent" SelectionChanged="IncidentList_SelectionChanged"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizingWhenGrouping="True">
-                        <ListBox.GroupStyle>
-                            <GroupStyle>
-                                <GroupStyle.HeaderTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Name}" Style="{StaticResource Overline}" Margin="4,12,0,2"/>
-                                    </DataTemplate>
-                                </GroupStyle.HeaderTemplate>
-                            </GroupStyle>
-                        </ListBox.GroupStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="4"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border CornerRadius="2" Background="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
-                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding When}" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding Trigger}" Style="{StaticResource Caption}" Margin="8,0,0,0" VerticalAlignment="Bottom"/>
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding Headline}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                    <TextBlock x:Name="NoIncidents" Style="{StaticResource Caption}" Margin="4,8" Visibility="Collapsed"
-                               Text="{local:Tr ui.noincidents}"/>
-                </Grid>
+                <Grid/>
             </DockPanel>
         </Border>
 
-        <!-- ───────── Live overview ───────── -->
-        <ScrollViewer x:Name="LiveView" Grid.Column="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="32,28,32,32" MaxWidth="1040">
-                <Border x:Name="UpdateBanner" CornerRadius="8" Padding="14,10" Margin="0,0,0,16" Visibility="Collapsed"
-                        Background="{DynamicResource SystemFillColorAttentionBackgroundBrush}">
-                    <DockPanel>
-                        <StackPanel x:Name="UpdateButtons" DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button Content="{local:Tr update.notes}" Click="UpdateNotes_Click" Padding="12,5" Margin="0,0,8,0"/>
-                            <Button Content="{local:Tr update.install}" Click="Update_Click" Padding="12,5" Style="{StaticResource AccentButtonStyle}"/>
-                        </StackPanel>
-                        <TextBlock x:Name="UpdateText" Style="{StaticResource Body}" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    </DockPanel>
-                </Border>
-                <TextBlock Text="{local:Tr ui.live}" Style="{StaticResource Display}"/>
-                <TextBlock x:Name="LiveSubtitle" Style="{StaticResource Caption}" FontSize="13" Margin="0,4,0,20"
-                           Text="{local:Tr ui.live.subtitle}"/>
-                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                    <DockPanel>
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Content="{local:Tr ui.patterns}" Click="Patterns_Click" Padding="12,6" Margin="0,0,8,0"/>
-                            <Button Content="{local:Tr ui.today.all}" Click="Table_Click" Padding="12,6"/>
-                        </StackPanel>
-                        <TextBlock DockPanel.Dock="Left" Text="&#xE787;" Style="{StaticResource Icon}" FontSize="20" Margin="0,2,14,0" VerticalAlignment="Top"/>
-                        <StackPanel>
-                            <TextBlock Text="{local:Tr ui.today.title}" Style="{StaticResource Subtitle}"/>
-                            <TextBlock x:Name="TodayText" Style="{StaticResource Body}" TextWrapping="Wrap" Margin="0,4,12,0"/>
-                            <TextBlock x:Name="TodayWeek" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </DockPanel>
-                </Border>
-                <UniformGrid x:Name="LiveTiles" Columns="4"/>
-                <Border Style="{StaticResource Card}" Margin="0,12,0,0">
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Left" Text="&#xEA80;" Style="{StaticResource Icon}" FontSize="22" Margin="0,0,16,0"
-                                   Foreground="{DynamicResource AccentFillColorDefaultBrush}" VerticalAlignment="Top"/>
-                        <StackPanel>
-                            <TextBlock Text="{local:Tr ui.howto.title}" Style="{StaticResource Subtitle}"/>
-                            <TextBlock x:Name="HowTo" Style="{StaticResource Body}" Margin="0,6,0,0"/>
-                        </StackPanel>
-                    </DockPanel>
-                </Border>
-                <ItemsControl x:Name="SourceWarnings" Margin="0,4,0,0">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border CornerRadius="8" Padding="14,10" Margin="0,0,0,8" Background="{DynamicResource SystemFillColorCautionBackgroundBrush}">
+        <DockPanel Grid.Column="1">
+            <!-- Update notice, visible on every page -->
+            <Border x:Name="UpdateBanner" DockPanel.Dock="Top" Padding="20,8" Visibility="Collapsed" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                <DockPanel>
+                    <StackPanel x:Name="UpdateButtons" DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="{local:Tr update.notes}" Style="{StaticResource GhostButton}" Click="UpdateNotes_Click" Margin="0,0,6,0"/>
+                        <Button Content="{local:Tr update.install}" Style="{StaticResource PrimaryButton}" Click="Update_Click"/>
+                    </StackPanel>
+                    <TextBlock Text="&#xE896;" DockPanel.Dock="Left" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,10,0" Foreground="{DynamicResource AccentFillColorDefaultBrush}"/>
+                    <TextBlock x:Name="UpdateText" Style="{StaticResource Body}" VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+
+            <Grid>
+                <!-- ───────── Overview ───────── -->
+                <ScrollViewer x:Name="LiveView" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="28,22,28,24" MaxWidth="1160">
+                        <TextBlock Text="{local:Tr ui.nav.overview}" Style="{StaticResource Display}"/>
+                        <TextBlock x:Name="LiveSubtitle" Style="{StaticResource Muted}" Margin="0,2,0,16" Text="{local:Tr ui.live.subtitle}"/>
+
+                        <Border Style="{StaticResource Card}" Padding="0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="2.4*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="18,12">
+                                    <TextBlock Text="{local:Tr ui.today.count}" Style="{StaticResource Caption}"/>
+                                    <TextBlock x:Name="TodayCount" Style="{StaticResource Metric}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <Border Grid.Column="1" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
+                                    <StackPanel Margin="18,12">
+                                        <TextBlock Text="{local:Tr ui.today.auto}" Style="{StaticResource Caption}"/>
+                                        <TextBlock x:Name="TodayAuto" Style="{StaticResource Metric}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="2" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
+                                    <StackPanel Margin="18,12">
+                                        <TextBlock Text="{local:Tr ui.today.weeklabel}" Style="{StaticResource Caption}"/>
+                                        <TextBlock x:Name="TodayWeek" Style="{StaticResource Metric}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="3" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
+                                    <StackPanel Margin="18,12" VerticalAlignment="Center">
+                                        <TextBlock Text="{local:Tr ui.today.toplabel}" Style="{StaticResource Caption}"/>
+                                        <TextBlock x:Name="TodayText" Style="{StaticResource Subtitle}" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <Border x:Name="NoisyHint" Style="{StaticResource Card}" Background="{DynamicResource SystemFillColorCautionBackgroundBrush}" Padding="14,9" Visibility="Collapsed">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="{local:Tr ui.settings}" Click="Settings_Click" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="&#xE946;" DockPanel.Dock="Left" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,10,0" Foreground="{DynamicResource SystemFillColorCautionBrush}"/>
+                                <TextBlock Text="{local:Tr ui.today.noisy}" Style="{StaticResource Body}" VerticalAlignment="Center"/>
+                            </DockPanel>
+                        </Border>
+
+                        <Border x:Name="HowToCard" Style="{StaticResource Card}" Visibility="Collapsed">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Click="Demo_Click" Margin="16,0,0,0" VerticalAlignment="Center" ToolTip="{local:Tr ui.demo.tip}" Content="{local:Tr ui.demo}"/>
+                                <StackPanel>
+                                    <TextBlock Text="{local:Tr ui.howto.title}" Style="{StaticResource Subtitle}"/>
+                                    <TextBlock x:Name="HowTo" Style="{StaticResource Muted}" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <TextBlock Text="{local:Tr ui.live.lastminute}" Style="{StaticResource SectionTitle}"/>
+                        <UniformGrid x:Name="LiveTiles" Columns="4" Margin="0,0,-10,0"/>
+
+                        <TextBlock x:Name="RecentHeader" Text="{local:Tr ui.live.recent}" Style="{StaticResource SectionTitle}"/>
+                        <Border x:Name="RecentCard" Style="{StaticResource Card}" Padding="6">
+                            <ItemsControl x:Name="RecentList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource GhostButton}" HorizontalContentAlignment="Stretch" Padding="12,7" Tag="{Binding Id}" Click="OpenPatternIncident_Click">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" Typography.NumeralAlignment="Tabular" Margin="16,0,0,0" VerticalAlignment="Center">
+                                                    <Run Text="{Binding Day, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding Time, Mode=OneWay}"/>
+                                                </TextBlock>
+                                                <Ellipse DockPanel.Dock="Left" Width="7" Height="7" Margin="0,0,10,0" Fill="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
+                                                <TextBlock Text="{Binding Headline}" Style="{StaticResource Body}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                            </DockPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+
+                        <ItemsControl x:Name="SourceWarnings" Margin="0,6,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <TextBlock DockPanel.Dock="Left" Text="&#xE7BA;" Style="{StaticResource Icon}" FontSize="12" Margin="0,2,8,0"
+                                                   Foreground="{DynamicResource SystemFillColorCautionBrush}" VerticalAlignment="Top"/>
+                                        <TextBlock Text="{Binding}" Style="{StaticResource Caption}"/>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ───────── Incidents: list and report ───────── -->
+                <Grid x:Name="IncidentsView" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="320"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Margin="16,20,16,8">
+                                <DockPanel Margin="0,0,0,10">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Click="Demo_Click" Padding="8,3" FontSize="12" Content="{local:Tr ui.demo}"
+                                            ToolTip="{local:Tr ui.demo.tip}"/>
+                                    <TextBlock Text="{local:Tr ui.nav.incidents}" Style="{StaticResource Title}" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <Grid>
+                                    <TextBox x:Name="TableSearch" TextChanged="TableFilter_Changed" AutomationProperties.Name="{local:Tr ui.table.search}"/>
+                                    <TextBlock x:Name="SearchHint" Text="{local:Tr ui.table.search}" Style="{StaticResource Caption}" Margin="12,0,0,0" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" IsHitTestVisible="False" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                                </Grid>
+                                <ComboBox x:Name="CategoryFilter" Margin="0,8,0,0" DisplayMemberPath="Value" SelectedValuePath="Key" SelectionChanged="TableFilter_Changed"
+                                          AutomationProperties.Name="{local:Tr ui.table.col.category}"/>
+                            </StackPanel>
+
+                            <Border x:Name="SelectionBar" DockPanel.Dock="Bottom" Padding="16,8" Visibility="Collapsed"
+                                    BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
                                 <DockPanel>
-                                    <TextBlock DockPanel.Dock="Left" Text="&#xE7BA;" Style="{StaticResource Icon}" Margin="0,0,12,0"
-                                               Foreground="{DynamicResource SystemFillColorCautionBrush}" VerticalAlignment="Top"/>
-                                    <TextBlock Text="{Binding}" Style="{StaticResource Body}"/>
+                                    <Button x:Name="DeleteSelectedButton" DockPanel.Dock="Right" Click="DeleteSelected_Click" Padding="10,4" Content="{local:Tr ui.table.deleteselected}"
+                                            Foreground="{DynamicResource SystemFillColorCriticalBrush}"/>
+                                    <TextBlock x:Name="SelectionText" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
                                 </DockPanel>
                             </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </ScrollViewer>
+                            <TextBlock DockPanel.Dock="Bottom" x:Name="TableSummary" Style="{StaticResource Overline}" FontWeight="Normal" Margin="18,6,16,8"/>
 
-        <!-- ───────── All incidents (table) ───────── -->
-        <DockPanel x:Name="TableView" Grid.Column="1" Visibility="Collapsed" Margin="32,28,32,24">
-            <StackPanel DockPanel.Dock="Top">
-                <TextBlock Text="{local:Tr ui.table}" Style="{StaticResource Display}"/>
-                <TextBlock Style="{StaticResource Caption}" FontSize="13" Margin="0,4,0,16" Text="{local:Tr ui.table.subtitle}"/>
-                <DockPanel Margin="0,0,0,12">
-                    <Button x:Name="DeleteSelectedButton" DockPanel.Dock="Right" Click="DeleteSelected_Click" Padding="12,6" Margin="8,0,0,0" IsEnabled="False">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74D;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
-                            <TextBlock Text="{local:Tr ui.table.deleteselected}"/>
-                        </StackPanel>
-                    </Button>
-                    <ComboBox x:Name="CategoryFilter" DockPanel.Dock="Right" Width="190" Margin="8,0,0,0" DisplayMemberPath="Value" SelectedValuePath="Key"
-                              SelectionChanged="TableFilter_Changed"/>
-                    <TextBlock DockPanel.Dock="Left" Text="&#xE721;" Style="{StaticResource Icon}" Margin="0,0,10,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                    <TextBox x:Name="TableSearch" TextChanged="TableFilter_Changed" AutomationProperties.Name="{local:Tr ui.table.search}" ToolTip="{local:Tr ui.table.search}"/>
-                </DockPanel>
-            </StackPanel>
-            <TextBlock DockPanel.Dock="Bottom" x:Name="TableSummary" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
-            <DataGrid x:Name="IncidentTable" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="None"
-                      SelectionMode="Extended" CanUserResizeRows="False" RowHeight="36" MouseDoubleClick="IncidentTable_DoubleClick"
-                      SelectionChanged="IncidentTable_SelectionChanged" KeyDown="IncidentTable_KeyDown">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="{local:Tr ui.table.col.time}" Binding="{Binding WhenText}" SortMemberPath="When" Width="135" ElementStyle="{StaticResource CellText}"/>
-                    <DataGridTemplateColumn Header="{local:Tr ui.table.col.category}" SortMemberPath="CategoryText" Width="125">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Border Style="{StaticResource Chip}" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{Binding Category, Converter={StaticResource CategorySoftBrush}}">
-                                    <TextBlock Text="{Binding CategoryText}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
-                                </Border>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTextColumn Header="{local:Tr ui.table.col.cause}" Binding="{Binding Cause}" Width="*" MinWidth="220" ElementStyle="{StaticResource CellText}"/>
-                    <DataGridTextColumn Header="{local:Tr ui.table.col.app}" Binding="{Binding App}" Width="120" ElementStyle="{StaticResource CellText}"/>
-                    <DataGridTextColumn Header="{local:Tr ui.table.col.trigger}" Binding="{Binding Trigger}" Width="90" ElementStyle="{StaticResource CellText}"/>
-                    <DataGridTextColumn Header="{local:Tr ui.table.col.findings}" Binding="{Binding Findings}" Width="75" ElementStyle="{StaticResource CellText}"/>
-                    <DataGridTextColumn Header="{local:Tr ui.table.col.flags}" Binding="{Binding Flags}" Width="60" ElementStyle="{StaticResource CellText}"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </DockPanel>
-
-        <!-- ───────── Recurring patterns ───────── -->
-        <ScrollViewer x:Name="PatternsView" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="32,28,32,32" MaxWidth="1040">
-                <TextBlock Text="{local:Tr ui.patterns}" Style="{StaticResource Display}"/>
-                <TextBlock Style="{StaticResource Caption}" FontSize="13" Margin="0,4,0,20" Text="{local:Tr ui.patterns.subtitle}"/>
-                <TextBlock x:Name="NoPatterns" Style="{StaticResource Body}" Visibility="Collapsed" Text="{local:Tr ui.patterns.none}"/>
-                <ItemsControl x:Name="PatternList">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource Card}" Padding="0">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="4"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border CornerRadius="8,0,0,8" Background="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
-                                    <StackPanel Grid.Column="1" Margin="20,16">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <Border Style="{StaticResource Chip}" Background="{Binding Category, Converter={StaticResource CategorySoftBrush}}">
-                                                <TextBlock Text="{Binding CountText}" FontSize="11" FontWeight="SemiBold"
-                                                           Foreground="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
-                                            </Border>
-                                            <TextBlock Text="{Binding Range}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}"/>
-                                        <TextBlock Text="{Binding When}" Style="{StaticResource Body}" FontWeight="SemiBold" Margin="0,6,0,0"
-                                                   Foreground="{DynamicResource AccentFillColorDefaultBrush}"/>
-                                        <Button Content="{local:Tr ui.patterns.open}" Tag="{Binding LatestId}" Click="OpenPatternIncident_Click"
-                                                HorizontalAlignment="Left" Padding="12,5" Margin="0,12,0,0"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2" Margin="0,16,20,16" Width="300">
-                                        <TextBlock Text="{local:Tr ui.patterns.byhour}" Style="{StaticResource Caption}"/>
-                                        <local:BarChart Values="{Binding ByHour}" Labels="{Binding HourLabels}" Height="56" Margin="0,4,0,2"/>
-                                        <TextBlock Text="{local:Tr ui.patterns.byweekday}" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
-                                        <local:BarChart Values="{Binding ByWeekday}" Labels="{Binding WeekdayLabels}" Height="48" Margin="0,4,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <TextBlock Text="{local:Tr ui.changes}" Style="{StaticResource Subtitle}" FontSize="17" Margin="0,20,0,4"/>
-                <TextBlock Text="{local:Tr ui.changes.subtitle}" Style="{StaticResource Caption}" FontSize="13" Margin="0,0,0,10"/>
-                <TextBlock x:Name="ChangesStatus" Style="{StaticResource Body}"/>
-                <ItemsControl x:Name="ChangeList">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource Card}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}"/>
-                                    <TextBlock Text="{Binding Detail}" Style="{StaticResource Body}" Margin="0,4,0,0"
-                                               Foreground="{DynamicResource SystemFillColorCriticalBrush}"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- ───────── Gaming sessions ───────── -->
-        <ScrollViewer x:Name="SessionsView" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="32,28,32,32" MaxWidth="1040">
-                <TextBlock Text="{local:Tr ui.sessions}" Style="{StaticResource Display}"/>
-                <TextBlock Style="{StaticResource Caption}" FontSize="13" Margin="0,4,0,20" Text="{local:Tr ui.sessions.subtitle}"/>
-                <TextBlock x:Name="SessionStatus" Style="{StaticResource Body}" Margin="0,0,0,12"/>
-                <ItemsControl x:Name="SessionList">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource Card}">
-                                <StackPanel>
-                                    <DockPanel>
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding When}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}"/>
-                                    </DockPanel>
-                                    <UniformGrid Rows="1" Margin="0,12,0,0">
-                                        <StackPanel><TextBlock Text="{local:Tr session.fps}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Fps}" FontSize="20" FontWeight="SemiBold"/></StackPanel>
-                                        <StackPanel><TextBlock Text="{local:Tr session.low}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Low}" FontSize="20" FontWeight="SemiBold"/></StackPanel>
-                                        <StackPanel><TextBlock Text="{local:Tr session.hitches}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Hitches}" FontSize="20" FontWeight="SemiBold"/></StackPanel>
-                                        <StackPanel><TextBlock Text="{local:Tr session.incidents}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Incidents}" FontSize="20" FontWeight="SemiBold"/></StackPanel>
-                                        <StackPanel><TextBlock Text="{local:Tr session.load}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Load}" FontSize="20" FontWeight="SemiBold"/></StackPanel>
-                                    </UniformGrid>
-                                    <TextBlock Text="{Binding Causes}" Style="{StaticResource Body}" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- ───────── Report ───────── -->
-        <ScrollViewer x:Name="ReportView" Grid.Column="1" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="32,28,32,32" MaxWidth="1040">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <Border x:Name="HeroChip" Style="{StaticResource Chip}">
-                        <TextBlock x:Name="HeroChipText" FontSize="12" FontWeight="SemiBold"/>
-                    </Border>
-                    <TextBlock x:Name="ReportWhen" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
-                </StackPanel>
-                <TextBlock x:Name="ReportTitle" Style="{StaticResource Display}"/>
-                <TextBlock x:Name="ReportSubtitle" Style="{StaticResource Caption}" FontSize="13" Margin="0,6,0,20"/>
-
-                <ItemsControl x:Name="Kpis" Margin="0,0,0,4">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Rows="1"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource Card}" Margin="0,0,12,12" Padding="16,12">
-                                <StackPanel>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Margin="0,0,6,0" Fill="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
-                                        <TextBlock Text="{Binding Label}" Style="{StaticResource Caption}"/>
-                                    </StackPanel>
-                                    <TextBlock Margin="0,4,0,0">
-                                        <Run Text="{Binding Value, Mode=OneWay}" FontSize="24" FontWeight="SemiBold"/>
-                                        <Run Text="{Binding Unit, Mode=OneWay}" FontSize="13" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                    </TextBlock>
-                                    <TextBlock Text="{Binding Note}" Style="{StaticResource Caption}"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <DockPanel>
-                            <TextBlock Text="{local:Tr ui.timeline}" Style="{StaticResource Subtitle}"/>
-                            <TextBlock Style="{StaticResource Caption}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                       Text="{local:Tr ui.timeline.legend}"/>
-                        </DockPanel>
-                        <local:TimelineChart x:Name="Chart" Margin="0,14,0,0"/>
-                    </StackPanel>
-                </Border>
-
-                <TextBlock x:Name="FindingsHeader" Style="{StaticResource Subtitle}" FontSize="17" Margin="0,12,0,10"/>
-                <ItemsControl x:Name="FindingsList">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Style="{StaticResource Card}" Padding="0">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="4"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border CornerRadius="8,0,0,8" Background="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
-                                    <StackPanel Grid.Column="1" Margin="20,16">
-                                        <DockPanel>
-                                            <StackPanel DockPanel.Dock="Right" Width="150" Margin="16,2,0,0" ToolTip="{local:Tr ui.confidence.tip}">
-                                                <TextBlock Text="{Binding ConfidenceText}" Style="{StaticResource Caption}" HorizontalAlignment="Right"/>
-                                                <ProgressBar Value="{Binding Confidence, Mode=OneWay}" Maximum="100" Height="4" Margin="0,4,0,0"/>
-                                            </StackPanel>
-                                            <StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                                    <Border Style="{StaticResource Chip}" Background="{Binding Category, Converter={StaticResource CategorySoftBrush}}">
-                                                        <TextBlock Text="{Binding CategoryLabel}" FontSize="11" FontWeight="SemiBold"
-                                                                   Foreground="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
-                                                    </Border>
-                                                    <TextBlock Text="{Binding Id}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}"/>
-                                            </StackPanel>
-                                        </DockPanel>
-                                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Body}" Margin="0,8,0,12"/>
-
-                                        <Border CornerRadius="6" Padding="12,8" Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                                                Visibility="{Binding EvidenceVisibility}">
-                                            <ItemsControl ItemsSource="{Binding Evidence}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Grid Margin="0,3">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="40"/>
-                                                                <ColumnDefinition Width="72"/>
-                                                                <ColumnDefinition Width="*"/>
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding Id}" FontFamily="Cascadia Mono, Consolas" FontSize="12"
-                                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-                                                            <TextBlock Grid.Column="1" Text="{Binding Time}" FontFamily="Cascadia Mono, Consolas" FontSize="12"
-                                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                                            <TextBlock Grid.Column="2" Text="{Binding Text}" TextWrapping="Wrap" FontSize="13"/>
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </Border>
-
-                                        <ItemsControl ItemsSource="{Binding Checks}" Margin="0,10,0,0">
-                                            <ItemsControl.ItemTemplate>
+                            <Grid>
+                                <ListBox x:Name="IncidentList" BorderThickness="0" Background="Transparent" SelectionChanged="IncidentList_SelectionChanged"
+                                         SelectionMode="Extended" ItemContainerStyle="{StaticResource IncidentItem}" KeyDown="IncidentList_KeyDown" Padding="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizingWhenGrouping="True">
+                                    <ListBox.GroupStyle>
+                                        <GroupStyle>
+                                            <GroupStyle.HeaderTemplate>
                                                 <DataTemplate>
-                                                    <DockPanel Margin="0,3">
-                                                        <TextBlock DockPanel.Dock="Left" Text="&#xE73E;" Style="{StaticResource Icon}" FontSize="12"
-                                                                   Margin="0,3,10,0" VerticalAlignment="Top" Foreground="{DynamicResource AccentFillColorDefaultBrush}"/>
-                                                        <TextBlock Text="{Binding}" Style="{StaticResource Body}" FontSize="13"
-                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                                    </DockPanel>
+                                                    <TextBlock Text="{Binding Name}" Style="{StaticResource Overline}" Margin="18,12,0,4"/>
                                                 </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!-- Windows events recorded with this incident -->
-                <Border x:Name="EventsCard" Style="{StaticResource Card}" Margin="0,8,0,12">
-                    <StackPanel>
-                        <DockPanel>
-                            <TextBlock x:Name="EventsCount" DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{local:Tr ui.events.title}" Style="{StaticResource Subtitle}"/>
+                                            </GroupStyle.HeaderTemplate>
+                                        </GroupStyle>
+                                    </ListBox.GroupStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel>
+                                                <Ellipse DockPanel.Dock="Left" Width="7" Height="7" Margin="0,6,9,0" VerticalAlignment="Top" Fill="{Binding Category, Converter={StaticResource CategoryBrush}}"
+                                                         ToolTip="{Binding CategoryText}"/>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Headline}" Style="{StaticResource Body}" LineHeight="18" MaxHeight="36" TextTrimming="CharacterEllipsis"/>
+                                                    <DockPanel Margin="0,2,0,0">
+                                                        <TextBlock DockPanel.Dock="Right" Text="{Binding Time}" Style="{StaticResource Overline}" FontWeight="Normal"
+                                                                   Typography.NumeralAlignment="Tabular" Margin="8,0,0,0"/>
+                                                        <TextBlock Text="{Binding Detail}" Style="{StaticResource Overline}" FontWeight="Normal" TextTrimming="CharacterEllipsis"/>
+                                                    </DockPanel>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock x:Name="NoIncidents" Style="{StaticResource Caption}" Margin="18,12" Visibility="Collapsed" Text="{local:Tr ui.noincidents}"/>
+                            </Grid>
                         </DockPanel>
-                        <DataGrid x:Name="EventsTable" Margin="0,12,0,0" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
-                                  GridLinesVisibility="None" MaxHeight="320" CanUserResizeRows="False" RowHeight="32">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="{local:Tr ui.table.col.time}" Binding="{Binding Time}" Width="80" ElementStyle="{StaticResource CellText}"/>
-                                <DataGridTextColumn Header="{local:Tr ui.events.col.level}" Binding="{Binding Level}" Width="95" ElementStyle="{StaticResource CellText}"/>
-                                <DataGridTextColumn Header="{local:Tr ui.events.col.source}" Binding="{Binding Source}" Width="170" ElementStyle="{StaticResource CellText}"/>
-                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60" ElementStyle="{StaticResource CellText}"/>
-                                <DataGridTextColumn Header="{local:Tr ui.events.col.message}" Binding="{Binding Message}" Width="*" ElementStyle="{StaticResource CellText}"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                        <TextBlock x:Name="NoEvents" Style="{StaticResource Caption}" Margin="0,8,0,0" Text="{local:Tr ui.events.none}" Visibility="Collapsed"/>
-                    </StackPanel>
-                </Border>
+                    </Border>
 
-                <!-- The user's own note -->
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <TextBlock Text="{local:Tr ui.note.title}" Style="{StaticResource Subtitle}"/>
-                        <TextBlock Text="{local:Tr ui.note.hint}" Style="{StaticResource Caption}" Margin="0,2,0,8"/>
-                        <TextBox x:Name="NoteBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" LostFocus="NoteBox_LostFocus"
-                                 AutomationProperties.Name="{local:Tr ui.note.title}"/>
+                    <!-- Nothing selected -->
+                    <StackPanel x:Name="ReportEmpty" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="&#xE8FD;" Style="{StaticResource Icon}" FontSize="28" HorizontalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                        <TextBlock Text="{local:Tr ui.selectincident}" Style="{StaticResource Muted}" Margin="0,10,0,0"/>
                     </StackPanel>
-                </Border>
 
-                <!-- Optional local AI -->
-                <Border Style="{StaticResource Card}" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}" BorderThickness="1.5" Margin="0,8,0,12">
-                    <DockPanel>
-                        <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="20" Margin="0,0,16,0" VerticalAlignment="Top"
-                                Background="{DynamicResource AccentFillColorDefaultBrush}">
-                            <TextBlock Text="&#xEA80;" Style="{StaticResource Icon}" FontSize="18" HorizontalAlignment="Center"
-                                       Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}"/>
+                    <!-- Report -->
+                    <DockPanel x:Name="ReportPane" Grid.Column="1" Visibility="Collapsed">
+                        <Border DockPanel.Dock="Top" Padding="28,20,28,14" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="16,-4,-8,0">
+                                    <Button x:Name="IgnoreAppButton" Style="{StaticResource GhostButton}" Click="IgnoreApp_Click" Visibility="Collapsed">
+                                        <Button.ToolTip><TextBlock x:Name="IgnoreAppText"/></Button.ToolTip>
+                                        <TextBlock Text="&#xE7BA;" Style="{StaticResource Icon}" FontSize="15"/>
+                                    </Button>
+                                    <Button Style="{StaticResource GhostButton}" Click="Copy_Click" ToolTip="{local:Tr ui.copy}" AutomationProperties.Name="{local:Tr ui.copy}">
+                                        <TextBlock Text="&#xE8C8;" Style="{StaticResource Icon}" FontSize="15"/>
+                                    </Button>
+                                    <Button Style="{StaticResource GhostButton}" Click="Export_Click" ToolTip="{local:Tr ui.export.tip}" AutomationProperties.Name="{local:Tr ui.export}">
+                                        <TextBlock Text="&#xE78C;" Style="{StaticResource Icon}" FontSize="15"/>
+                                    </Button>
+                                    <Button Style="{StaticResource GhostButton}" Click="OpenFolder_Click" ToolTip="{local:Tr ui.openfolder}" AutomationProperties.Name="{local:Tr ui.openfolder}">
+                                        <TextBlock Text="&#xE838;" Style="{StaticResource Icon}" FontSize="15"/>
+                                    </Button>
+                                    <Button Style="{StaticResource GhostButton}" Click="Delete_Click" ToolTip="{local:Tr ui.delete}" AutomationProperties.Name="{local:Tr ui.delete}">
+                                        <TextBlock Text="&#xE74D;" Style="{StaticResource Icon}" FontSize="15"/>
+                                    </Button>
+                                </StackPanel>
+                                <StackPanel>
+                                    <WrapPanel Margin="0,0,0,6">
+                                        <Border x:Name="HeroChip" Style="{StaticResource Chip}">
+                                            <TextBlock x:Name="HeroChipText" FontSize="11" FontWeight="SemiBold"/>
+                                        </Border>
+                                        <TextBlock x:Name="ReportWhen" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+                                    </WrapPanel>
+                                    <TextBlock x:Name="ReportTitle" Style="{StaticResource Display}"/>
+                                    <TextBlock x:Name="ReportSubtitle" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </DockPanel>
                         </Border>
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{local:Tr ui.ai.title}" Style="{StaticResource Subtitle}"/>
-                                <Border Style="{StaticResource Chip}" Margin="10,0,0,0" Background="{DynamicResource SubtleFillColorSecondaryBrush}">
-                                    <TextBlock Text="{local:Tr ui.ai.chip}" FontSize="11"/>
-                                </Border>
-                            </StackPanel>
-                            <TextBlock x:Name="AiIntro" Style="{StaticResource Caption}" FontSize="13" Margin="0,6,0,12"/>
-                            <WrapPanel>
-                                <Button x:Name="AiExplainButton" Style="{DynamicResource AccentButtonStyle}" Padding="14,7" Margin="0,0,8,0" Click="Explain_Click" AutomationProperties.Name="{local:Tr ui.ai.explain}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE945;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
-                                        <TextBlock x:Name="AiExplainText"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button x:Name="AiCancelButton" Content="{local:Tr ui.cancel}" Padding="14,7" Margin="0,0,8,0" Click="CancelExplain_Click" Visibility="Collapsed"/>
-                                <Button x:Name="AiSettingsButton" Content="{local:Tr ui.ai.setup}" Padding="14,7" Click="Settings_Click"/>
-                            </WrapPanel>
-                            <StackPanel x:Name="AiBusy" Orientation="Horizontal" Margin="0,12,0,0" Visibility="Collapsed">
-                                <ProgressBar IsIndeterminate="True" Width="120" Height="4" Margin="0,0,12,0"/>
-                                <TextBlock x:Name="AiBusyText" Style="{StaticResource Caption}"/>
-                            </StackPanel>
-                            <TextBlock x:Name="AiStatus" Style="{StaticResource Caption}" FontSize="13" Margin="0,10,0,0" Visibility="Collapsed"/>
 
-                            <StackPanel x:Name="AiResult" Margin="0,14,0,0" Visibility="Collapsed">
-                                <TextBlock x:Name="AiSummary" Style="{StaticResource Body}" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                                <ItemsControl x:Name="AiItems">
+                        <ScrollViewer x:Name="ReportView" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="28,16,28,24">
+                                <Border Style="{StaticResource Card}" Padding="0">
+                                    <ItemsControl x:Name="Kpis">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Rows="1"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0" Padding="16,11">
+                                                    <StackPanel>
+                                                        <DockPanel>
+                                                            <Ellipse Width="7" Height="7" Margin="0,0,7,0" Fill="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
+                                                            <TextBlock Text="{Binding Label}" Style="{StaticResource Caption}"/>
+                                                        </DockPanel>
+                                                        <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular">
+                                                            <Run Text="{Binding Value, Mode=OneWay}" FontSize="22" FontWeight="SemiBold"/>
+                                                            <Run Text="{Binding Unit, Mode=OneWay}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Note}" Style="{StaticResource Overline}" FontWeight="Normal" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="{local:Tr ui.timeline}" Style="{StaticResource Subtitle}"/>
+                                        <TextBlock Style="{StaticResource Overline}" FontWeight="Normal" TextWrapping="Wrap" Margin="0,2,0,0" Text="{local:Tr ui.timeline.legend}"/>
+                                        <local:TimelineChart x:Name="Chart" Margin="0,12,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock x:Name="FindingsHeader" Style="{StaticResource SectionTitle}"/>
+                                <ItemsControl x:Name="FindingsList">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <StackPanel Margin="0,0,0,12">
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                                    <Border Style="{StaticResource Chip}" Background="{Binding Category, Converter={StaticResource CategorySoftBrush}}">
-                                                        <TextBlock Text="{Binding Header}" FontSize="11" FontWeight="SemiBold"
-                                                                   Foreground="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
-                                                    </Border>
-                                                    <TextBlock Text="{Binding Evidence}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+                                            <Border Style="{StaticResource Card}">
+                                                <StackPanel>
+                                                    <DockPanel Margin="0,0,0,4">
+                                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" ToolTip="{local:Tr ui.confidence.tip}">
+                                                            <TextBlock Text="{Binding ConfidenceText}" Style="{StaticResource Overline}" FontWeight="Normal" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <Ellipse Width="7" Height="7" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
+                                                        <TextBlock Style="{StaticResource Caption}">
+                                                            <Run Text="{Binding CategoryLabel, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding Id, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                    </DockPanel>
+                                                    <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="{Binding Summary}" Style="{StaticResource Muted}" Margin="0,4,0,0"/>
+
+                                                    <ItemsControl ItemsSource="{Binding Evidence}" Margin="0,10,0,0" Visibility="{Binding EvidenceVisibility}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="34"/>
+                                                                        <ColumnDefinition Width="66"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <Border Grid.ColumnSpan="3" Style="{StaticResource Divider}" VerticalAlignment="Top"/>
+                                                                    <TextBlock Text="{Binding Id}" FontFamily="{StaticResource MonoFont}" FontSize="11" Margin="0,6"
+                                                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Time}" FontFamily="{StaticResource MonoFont}" FontSize="11" Margin="0,6"
+                                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                                                    <TextBlock Grid.Column="2" Text="{Binding Text}" Style="{StaticResource Body}" LineHeight="17" Margin="0,5"/>
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+
+                                                    <ItemsControl ItemsSource="{Binding Checks}" Margin="0,6,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <DockPanel Margin="0,3">
+                                                                    <TextBlock DockPanel.Dock="Left" Text="&#xE76C;" Style="{StaticResource Icon}" FontSize="10"
+                                                                               Margin="0,4,10,0" VerticalAlignment="Top" Foreground="{DynamicResource AccentFillColorDefaultBrush}"/>
+                                                                    <TextBlock Text="{Binding}" Style="{StaticResource Muted}"/>
+                                                                </DockPanel>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
                                                 </StackPanel>
-                                                <TextBlock Text="{Binding Text}" Style="{StaticResource Body}"/>
-                                                <ItemsControl ItemsSource="{Binding Steps}" Margin="0,4,0,0">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <DockPanel Margin="0,2">
-                                                                <TextBlock DockPanel.Dock="Left" Text="&#xE76C;" Style="{StaticResource Icon}" FontSize="10"
-                                                                           Margin="2,4,10,0" VerticalAlignment="Top" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                                                <TextBlock Text="{Binding}" Style="{StaticResource Body}" FontSize="13"
-                                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                                            </DockPanel>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
+                                            </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <TextBlock x:Name="AiCaveats" Style="{StaticResource Caption}" FontSize="13" FontStyle="Italic"/>
-                                <TextBlock x:Name="AiNotes" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </DockPanel>
-                </Border>
 
-                <WrapPanel>
-                    <Button x:Name="IgnoreAppButton" Click="IgnoreApp_Click" Padding="12,7" Margin="0,0,8,8" Visibility="Collapsed">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE7BA;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
-                            <TextBlock x:Name="IgnoreAppText"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Click="Copy_Click" AutomationProperties.Name="{local:Tr ui.copy}" Padding="12,7" Margin="0,0,8,8">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8C8;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
-                            <TextBlock Text="{local:Tr ui.copy}"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Click="Export_Click" AutomationProperties.Name="{local:Tr ui.export}" ToolTip="{local:Tr ui.export.tip}" Padding="12,7" Margin="0,0,8,8">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE78C;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
-                            <TextBlock Text="{local:Tr ui.export}"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Click="OpenFolder_Click" AutomationProperties.Name="{local:Tr ui.openfolder}" Padding="12,7" Margin="0,0,8,8">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE838;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
-                            <TextBlock Text="{local:Tr ui.openfolder}"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Click="Delete_Click" AutomationProperties.Name="{local:Tr ui.delete}" Padding="12,7" Margin="0,0,8,8">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE74D;" Style="{StaticResource Icon}" FontSize="14" Margin="0,0,8,0"/>
-                            <TextBlock Text="{local:Tr ui.delete}"/>
-                        </StackPanel>
-                    </Button>
-                </WrapPanel>
-                <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0"
-                           Text="{local:Tr report.disclaimer}"/>
-            </StackPanel>
-        </ScrollViewer>
+                                <!-- Optional local AI -->
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <WrapPanel DockPanel.Dock="Right" VerticalAlignment="Center">
+                                                <Button x:Name="AiExplainButton" Style="{StaticResource PrimaryButton}" Click="Explain_Click" AutomationProperties.Name="{local:Tr ui.ai.explain}">
+                                                    <TextBlock x:Name="AiExplainText"/>
+                                                </Button>
+                                                <Button x:Name="AiCancelButton" Content="{local:Tr ui.cancel}" Margin="8,0,0,0" Click="CancelExplain_Click" Visibility="Collapsed"/>
+                                                <Button x:Name="AiSettingsButton" Content="{local:Tr ui.ai.setup}" Click="Settings_Click"/>
+                                            </WrapPanel>
+                                            <TextBlock DockPanel.Dock="Left" Text="&#xE945;" Style="{StaticResource Icon}" FontSize="15" Margin="0,2,12,0" VerticalAlignment="Top"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                            <StackPanel Margin="0,0,16,0">
+                                                <TextBlock Text="{local:Tr ui.ai.title}" Style="{StaticResource Subtitle}"/>
+                                                <TextBlock x:Name="AiIntro" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </DockPanel>
+                                        <StackPanel x:Name="AiBusy" Orientation="Horizontal" Margin="0,12,0,0" Visibility="Collapsed">
+                                            <ProgressBar IsIndeterminate="True" Width="120" Height="3" Margin="0,0,12,0"/>
+                                            <TextBlock x:Name="AiBusyText" Style="{StaticResource Caption}"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="AiStatus" Style="{StaticResource Caption}" Margin="0,10,0,0" Visibility="Collapsed"/>
+
+                                        <StackPanel x:Name="AiResult" Margin="0,12,0,0" Visibility="Collapsed">
+                                            <TextBlock x:Name="AiSummary" Style="{StaticResource Body}" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                            <ItemsControl x:Name="AiItems">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Margin="0,0,0,12">
+                                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                                <Border Style="{StaticResource Chip}" Background="{Binding Category, Converter={StaticResource CategorySoftBrush}}">
+                                                                    <TextBlock Text="{Binding Header}" FontSize="11" FontWeight="SemiBold"
+                                                                               Foreground="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
+                                                                </Border>
+                                                                <TextBlock Text="{Binding Evidence}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding Text}" Style="{StaticResource Body}"/>
+                                                            <ItemsControl ItemsSource="{Binding Steps}" Margin="0,4,0,0">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <DockPanel Margin="0,2">
+                                                                            <TextBlock DockPanel.Dock="Left" Text="&#xE76C;" Style="{StaticResource Icon}" FontSize="10"
+                                                                                       Margin="0,4,10,0" VerticalAlignment="Top" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                                                            <TextBlock Text="{Binding}" Style="{StaticResource Muted}"/>
+                                                                        </DockPanel>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock x:Name="AiCaveats" Style="{StaticResource Caption}" FontStyle="Italic"/>
+                                            <TextBlock x:Name="AiNotes" Style="{StaticResource Overline}" FontWeight="Normal" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Windows events recorded with this incident -->
+                                <Border x:Name="EventsCard" Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <TextBlock x:Name="EventsCount" DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{local:Tr ui.events.title}" Style="{StaticResource Subtitle}"/>
+                                        </DockPanel>
+                                        <DataGrid x:Name="EventsTable" Margin="0,10,0,0" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                                  GridLinesVisibility="None" MaxHeight="320" CanUserResizeRows="False" RowHeight="30">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="{local:Tr ui.table.col.time}" Binding="{Binding Time}" Width="80" ElementStyle="{StaticResource CellText}"/>
+                                                <DataGridTextColumn Header="{local:Tr ui.events.col.level}" Binding="{Binding Level}" Width="95" ElementStyle="{StaticResource CellText}"/>
+                                                <DataGridTextColumn Header="{local:Tr ui.events.col.source}" Binding="{Binding Source}" Width="170" ElementStyle="{StaticResource CellText}"/>
+                                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60" ElementStyle="{StaticResource CellText}"/>
+                                                <DataGridTextColumn Header="{local:Tr ui.events.col.message}" Binding="{Binding Message}" Width="*" ElementStyle="{StaticResource CellText}"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                        <TextBlock x:Name="NoEvents" Style="{StaticResource Caption}" Margin="0,4,0,0" Text="{local:Tr ui.events.none}" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- The user's own note -->
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="{local:Tr ui.note.title}" Style="{StaticResource Subtitle}"/>
+                                        <TextBlock Text="{local:Tr ui.note.hint}" Style="{StaticResource Caption}" Margin="0,2,0,8"/>
+                                        <TextBox x:Name="NoteBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56" LostFocus="NoteBox_LostFocus"
+                                                 AutomationProperties.Name="{local:Tr ui.note.title}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Style="{StaticResource Overline}" FontWeight="Normal" TextWrapping="Wrap" Margin="0,4,0,0" Text="{local:Tr report.disclaimer}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Grid>
+
+                <!-- ───────── Recurring patterns ───────── -->
+                <ScrollViewer x:Name="PatternsView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="28,22,28,24" MaxWidth="1160">
+                        <TextBlock Text="{local:Tr ui.patterns}" Style="{StaticResource Display}"/>
+                        <TextBlock Style="{StaticResource Muted}" Margin="0,2,0,16" Text="{local:Tr ui.patterns.subtitle}"/>
+                        <TextBlock x:Name="NoPatterns" Style="{StaticResource Body}" Visibility="Collapsed" Text="{local:Tr ui.patterns.none}"/>
+                        <ItemsControl x:Name="PatternList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Card}" Padding="18,14">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="210"/>
+                                                <ColumnDefinition Width="170"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Margin="0,0,24,0">
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <Ellipse Width="7" Height="7" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
+                                                    <TextBlock Style="{StaticResource Caption}">
+                                                        <Run Text="{Binding CountText, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding Range, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}"/>
+                                                <TextBlock Text="{Binding When}" Style="{StaticResource Muted}" Margin="0,2,0,8"/>
+                                                <Button Content="{local:Tr ui.patterns.open}" Tag="{Binding LatestId}" Click="OpenPatternIncident_Click" HorizontalAlignment="Left" Padding="10,4"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Margin="0,0,20,0">
+                                                <TextBlock Text="{local:Tr ui.patterns.byhour}" Style="{StaticResource Overline}" FontWeight="Normal"/>
+                                                <local:BarChart Values="{Binding ByHour}" Labels="{Binding HourLabels}" Height="70" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="{local:Tr ui.patterns.byweekday}" Style="{StaticResource Overline}" FontWeight="Normal"/>
+                                                <local:BarChart Values="{Binding ByWeekday}" Labels="{Binding WeekdayLabels}" Height="70" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="{local:Tr ui.changes}" Style="{StaticResource SectionTitle}" Margin="0,14,0,0"/>
+                        <TextBlock Text="{local:Tr ui.changes.subtitle}" Style="{StaticResource Caption}" Margin="0,2,0,10"/>
+                        <TextBlock x:Name="ChangesStatus" Style="{StaticResource Muted}"/>
+                        <ItemsControl x:Name="ChangeList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Card}">
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Left" Text="&#xE7BA;" Style="{StaticResource Icon}" FontSize="14" Margin="0,2,12,0" VerticalAlignment="Top"
+                                                       Foreground="{DynamicResource SystemFillColorCautionBrush}"/>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}"/>
+                                                <TextBlock Text="{Binding Detail}" Style="{StaticResource Muted}" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ───────── Gaming sessions ───────── -->
+                <ScrollViewer x:Name="SessionsView" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="28,22,28,24" MaxWidth="1160">
+                        <TextBlock Text="{local:Tr ui.sessions}" Style="{StaticResource Display}"/>
+                        <TextBlock Style="{StaticResource Muted}" Margin="0,2,0,16" Text="{local:Tr ui.sessions.subtitle}"/>
+                        <TextBlock x:Name="SessionStatus" Style="{StaticResource Body}" Margin="0,0,0,12"/>
+                        <ItemsControl x:Name="SessionList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Card}">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding When}" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}"/>
+                                            </DockPanel>
+                                            <UniformGrid Rows="1" Margin="0,10,0,0">
+                                                <StackPanel><TextBlock Text="{local:Tr session.fps}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Fps}" Style="{StaticResource Metric}"/></StackPanel>
+                                                <StackPanel><TextBlock Text="{local:Tr session.low}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Low}" Style="{StaticResource Metric}"/></StackPanel>
+                                                <StackPanel><TextBlock Text="{local:Tr session.hitches}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Hitches}" Style="{StaticResource Metric}"/></StackPanel>
+                                                <StackPanel><TextBlock Text="{local:Tr session.incidents}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Incidents}" Style="{StaticResource Metric}"/></StackPanel>
+                                                <StackPanel><TextBlock Text="{local:Tr session.load}" Style="{StaticResource Caption}"/><TextBlock Text="{Binding Load}" Style="{StaticResource Metric}"/></StackPanel>
+                                            </UniformGrid>
+                                            <TextBlock Text="{Binding Causes}" Style="{StaticResource Caption}" Margin="0,10,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </DockPanel>
     </Grid>
 </Window>

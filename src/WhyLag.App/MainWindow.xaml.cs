@@ -12,12 +12,12 @@ using static WhyLag.Core.Localization.Loc;
 
 namespace WhyLag.App;
 
-/// <summary>One entry of the sidebar list. <see cref="Day"/> groups the list ("Today", "Yesterday", a date).</summary>
-public sealed record IncidentListItem(string Id, string When, string Trigger, string Headline, FindingCategory? Category,
-    DateTime Local, bool Automatic, string Day)
+/// <summary>One entry of the incident list. <see cref="Day"/> groups the list ("Today", "Yesterday", a date).</summary>
+public sealed record IncidentListItem(string Id, string Time, string Trigger, string Headline, FindingCategory? Category, string CategoryText,
+    string App, string Detail, DateTime Local, bool Automatic, string Day)
 {
     /// <summary>What screen readers announce for the entry.</summary>
-    public override string ToString() => $"{When} · {Trigger} · {Headline}";
+    public override string ToString() => $"{Time} · {CategoryText} · {Headline}";
 }
 
 public sealed record EvidenceRow(string Id, string Time, string Text);
@@ -36,9 +36,6 @@ public sealed record SessionView(string Title, string When, string Fps, string L
 
 public sealed record ChangeView(string Title, string Detail);
 
-public sealed record IncidentRow(string Id, DateTimeOffset When, string WhenText, FindingCategory? Category, string CategoryText,
-    string Cause, string App, string Trigger, int Findings, string Flags);
-
 public sealed record EventRow(string Time, string Level, string Source, int Id, string Message);
 
 public sealed record PatternView(string Title, FindingCategory Category, string CountText, string Range, string When,
@@ -47,6 +44,7 @@ public sealed record PatternView(string Title, FindingCategory Category, string 
 public partial class MainWindow : Window
 {
     private readonly ObservableCollection<IncidentListItem> _items = new();
+    private readonly System.ComponentModel.ICollectionView _view;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly List<LiveTile> _tiles;
     private Incident? _current;
@@ -65,8 +63,9 @@ public partial class MainWindow : Window
         Logo.Source = Icon;
         Language = System.Windows.Markup.XmlLanguage.GetLanguage(Culture.IetfLanguageTag);
         IncidentList.ItemsSource = _items;
-        System.Windows.Data.CollectionViewSource.GetDefaultView(_items).GroupDescriptions
-            .Add(new System.Windows.Data.PropertyGroupDescription(nameof(IncidentListItem.Day)));
+        _view = System.Windows.Data.CollectionViewSource.GetDefaultView(_items);
+        _view.GroupDescriptions.Add(new System.Windows.Data.PropertyGroupDescription(nameof(IncidentListItem.Day)));
+        _view.Filter = o => o is IncidentListItem i && MatchesFilter(i);
 
         _tiles =
         [
@@ -134,8 +133,16 @@ public partial class MainWindow : Window
 
     public void Select(string id)
     {
+        ShowView(IncidentsView);
         var item = _items.FirstOrDefault(i => i.Id == id);
-        if (item is not null) IncidentList.SelectedItem = item;
+        if (item is null) return;
+        if (!MatchesFilter(item))
+        {
+            TableSearch.Text = "";
+            CategoryFilter.SelectedValue = "";
+        }
+        IncidentList.SelectedItem = item;
+        IncidentList.ScrollIntoView(item);
     }
 
     public void RefreshStatus()
@@ -144,6 +151,7 @@ public partial class MainWindow : Window
         var s = Host.Settings;
         HotkeyHint.Text = Host.HotkeyError ?? T("ui.hotkeyhint", s.Hotkey);
         HowTo.Text = T("ui.howto", s.Hotkey) + " " + (s.AutoDetect ? T("ui.howto.auto") : T("ui.howto.autooff"));
+        HowToCard.Visibility = _items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         UpdateBanner.Visibility = Host.AvailableUpdate is null ? Visibility.Collapsed : Visibility.Visible;
         if (Host.AvailableUpdate is { } update) UpdateText.Text = Host.UpdateStatus ?? T("update.text", update.Version.ToString(3));
@@ -153,8 +161,7 @@ public partial class MainWindow : Window
         StatusTitle.Text = recorder.Paused ? T("ui.status.paused") : T("ui.status.recording");
         StatusDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty,
             recorder.Paused ? "SystemFillColorCautionBrush" : "SystemFillColorSuccessBrush");
-        StatusDetail.Text = T("ui.status.detail", recorder.BufferedSeconds / 60, recorder.BufferedSeconds % 60,
-            s.Ai.Enabled ? T("ui.status.ai.on") : T("ui.status.ai.off"));
+        StatusDetail.Text = T("ui.status.buffer", recorder.BufferedSeconds / 60, recorder.BufferedSeconds % 60);
 
         if (LiveView.Visibility == Visibility.Visible)
         {
@@ -165,30 +172,55 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Shows the page with recorded values when no recorder runs (screenshots).</summary>
+    internal void ShowPreview(IReadOnlyList<Tick> ticks)
+    {
+        StatusTitle.Text = T("ui.status.recording");
+        StatusDetail.Text = T("ui.status.buffer", 10, 0);
+        foreach (var tile in _tiles) tile.Visibility = tile.Update(ticks.TakeLast(60).ToList()) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void LoadList()
     {
+        var selected = (IncidentList.SelectedItem as IncidentListItem)?.Id;
         _items.Clear();
         foreach (var incident in Host.Store.LoadAll()) _items.Add(ToItem(incident));
         UpdateCount();
+        if (_items.FirstOrDefault(i => i.Id == selected) is { } item) IncidentList.SelectedItem = item;
     }
 
     private void UpdateCount()
     {
         IncidentCount.Text = _items.Count.ToString(Culture);
         NoIncidents.Visibility = _items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        TableSummary.Text = T("ui.table.summary", _view.Cast<object>().Count(), _items.Count);
         RefreshToday();
     }
 
-    /// <summary>The "Today" card on the live page: how many incidents, how many automatic, the most frequent cause.</summary>
+    /// <summary>The summary on the overview: incidents today and this week, and the most frequent cause today.</summary>
     private void RefreshToday()
     {
-        var today = _items.Where(i => i.Local.Date == DateTime.Today && !i.Id.EndsWith("-demo", StringComparison.Ordinal)).ToList();
+        var real = _items.Where(i => !i.Id.EndsWith("-demo", StringComparison.Ordinal)).ToList();
+        var today = real.Where(i => i.Local.Date == DateTime.Today).ToList();
         var top = today.Where(i => i.Category is not null).GroupBy(i => i.Headline).OrderByDescending(g => g.Count()).FirstOrDefault();
-        TodayText.Text = today.Count == 0 ? T("ui.today.none") : T("ui.today.text", today.Count, today.Count(i => i.Automatic));
-        if (top is not null) TodayText.Text += " " + T("ui.today.top", top.Key, top.Count());
-        if (Host.Settings is { AutoDetect: true, AutoDetectNetwork: true } && today.Count(i => i.Automatic && i.Category == FindingCategory.Network) >= 10)
-            TodayText.Text += "\n" + T("ui.today.noisy");
-        TodayWeek.Text = T("ui.today.week", _items.Count(i => i.Local >= DateTime.Today.AddDays(-6) && !i.Id.EndsWith("-demo", StringComparison.Ordinal)));
+        TodayCount.Text = today.Count.ToString(Culture);
+        TodayAuto.Text = today.Count(i => i.Automatic).ToString(Culture);
+        TodayWeek.Text = real.Count(i => i.Local >= DateTime.Today.AddDays(-6)).ToString(Culture);
+        TodayText.Text = top is not null ? $"{top.Key} ({top.Count()}×)" : T("ui.today.none");
+        RecentList.ItemsSource = _items.Take(5).ToList();
+        RecentCard.Visibility = RecentHeader.Visibility = _items.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        NoisyHint.Visibility = Host.Settings is { AutoDetect: true, AutoDetectNetwork: true }
+                               && today.Count(i => i.Automatic && i.Category == FindingCategory.Network) >= 10
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private bool MatchesFilter(IncidentListItem item)
+    {
+        var text = TableSearch.Text.Trim();
+        var category = CategoryFilter.SelectedValue as string ?? "";
+        return (category == "" || item.Category?.ToString() == category)
+               && (text.Length == 0 || item.Headline.Contains(text, StringComparison.CurrentCultureIgnoreCase)
+                                    || item.App.Contains(text, StringComparison.CurrentCultureIgnoreCase));
     }
 
     private static IncidentListItem ToItem(Incident i)
@@ -196,7 +228,10 @@ public partial class MainWindow : Window
         var local = i.TriggeredAt.ToLocalTime();
         var trigger = i.Id.EndsWith("-demo", StringComparison.Ordinal) ? T("trigger.short.demo") : T($"trigger.short.{i.Trigger}");
         var top = i.Findings.FirstOrDefault();
+        var app = i.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess ?? "";
+        var flags = (i.Explanation is null ? "" : " · AI") + (string.IsNullOrWhiteSpace(i.Note) ? "" : " · ✎");
         return new IncidentListItem(i.Id, local.ToString("HH:mm:ss", Culture), trigger, top?.Title ?? T("report.none.title"), top?.Category,
+            top is null ? T("ui.result") : Palette.Label(top.Category), app, (app.Length > 0 ? $"{app} · {trigger}" : trigger) + flags,
             local.DateTime, i.Trigger == TriggerKind.Automatic, DayLabel(local.DateTime));
     }
 
@@ -218,32 +253,43 @@ public partial class MainWindow : Window
         else _items.Insert(0, item);
         while (_items.Count > Math.Max(Host.Settings.KeepIncidents, 1)) _items.RemoveAt(_items.Count - 1);
         UpdateCount();
-        IncidentList.SelectedItem = item;
+        // An automatic incident must not pull the user away from what they are looking at.
+        if (incident.Trigger != TriggerKind.Automatic) Select(item.Id);
     }
 
     private void IncidentList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_current is not null) NoteBox_LostFocus(this, new RoutedEventArgs()); // keep an unsaved note
         _explainCts?.Cancel();
+        var count = IncidentList.SelectedItems.Count;
+        SelectionBar.Visibility = count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        SelectionText.Text = T("ui.table.selected", count);
         if (IncidentList.SelectedItem is IncidentListItem item && Host.Store.Load(item.Id) is { } incident) Show(incident);
+        else if (count == 0) ShowNoReport();
+    }
+
+    private void ShowNoReport()
+    {
+        _current = null;
+        ReportPane.Visibility = Visibility.Collapsed;
+        ReportEmpty.Visibility = Visibility.Visible;
+    }
+
+    private void IncidentList_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Delete)
+        {
+            DeleteSelected_Click(sender, e);
+            e.Handled = true;
+        }
     }
 
     private void ShowView(UIElement view)
     {
-        foreach (var v in new UIElement[] { LiveView, PatternsView, ReportView, TableView, SessionsView }) v.Visibility = v == view ? Visibility.Visible : Visibility.Collapsed;
-        // Mark the page that is open in the sidebar.
-        foreach (var (button, page) in new (Button, UIElement)[] { (LiveButton, LiveView), (PatternsButton, PatternsView), (SessionsButton, SessionsView), (TableButton, TableView) })
+        foreach (var (page, nav) in new (UIElement, RadioButton)[] { (LiveView, LiveButton), (IncidentsView, TableButton), (PatternsView, PatternsButton), (SessionsView, SessionsButton) })
         {
-            if (page == view)
-            {
-                button.SetResourceReference(BackgroundProperty, "SubtleFillColorSecondaryBrush");
-                button.FontWeight = FontWeights.SemiBold;
-            }
-            else
-            {
-                button.ClearValue(BackgroundProperty);
-                button.ClearValue(FontWeightProperty);
-            }
+            page.Visibility = page == view ? Visibility.Visible : Visibility.Collapsed;
+            if (page == view) nav.IsChecked = true;
         }
     }
 
@@ -251,17 +297,19 @@ public partial class MainWindow : Window
 
     private void ShowLive()
     {
-        _current = null;
-        IncidentList.SelectedItem = null;
         ShowView(LiveView);
         RefreshToday();
         RefreshStatus();
     }
 
+    private void Incidents_Click(object sender, RoutedEventArgs e)
+    {
+        ShowView(IncidentsView);
+        if (IncidentList.SelectedItem is null && !_view.IsEmpty) IncidentList.SelectedIndex = 0;
+    }
+
     private void Patterns_Click(object sender, RoutedEventArgs e)
     {
-        _current = null;
-        IncidentList.SelectedItem = null;
         ShowView(PatternsView);
 
         var days = Enumerable.Range(0, 7).Select(d => Culture.DateTimeFormat.GetShortestDayName((DayOfWeek)((d + 1) % 7))).ToArray();
@@ -276,75 +324,27 @@ public partial class MainWindow : Window
         _ = LoadChangesAsync();
     }
 
-    private List<IncidentRow> _rows = new();
-
-    private void Table_Click(object sender, RoutedEventArgs e)
+    private void TableFilter_Changed(object sender, EventArgs e)
     {
-        _current = null;
-        IncidentList.SelectedItem = null;
-        ShowView(TableView);
-        _rows = Host.Store.LoadAll().Select(ToRow).ToList();
-        ApplyTableFilter();
-    }
-
-    private static IncidentRow ToRow(Incident i)
-    {
-        var top = i.Findings.FirstOrDefault();
-        var local = i.TriggeredAt.ToLocalTime();
-        var flags = (i.Explanation is null ? "" : "AI ") + (string.IsNullOrWhiteSpace(i.Note) ? "" : "✎");
-        return new IncidentRow(i.Id, local, local.ToString("d MMM, HH:mm:ss", Culture), top?.Category,
-            top is null ? "–" : Palette.Label(top.Category), top?.Title ?? T("report.none.title"),
-            i.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess ?? "–",
-            i.Id.EndsWith("-demo", StringComparison.Ordinal) ? T("trigger.short.demo") : T($"trigger.short.{i.Trigger}"),
-            i.Findings.Count, flags.Trim());
-    }
-
-    private void TableFilter_Changed(object sender, EventArgs e) => ApplyTableFilter();
-
-    private void ApplyTableFilter()
-    {
-        if (!IsLoaded && _rows.Count == 0) return;
-        var text = TableSearch.Text.Trim();
-        var category = CategoryFilter.SelectedValue as string ?? "";
-        var rows = _rows.Where(r =>
-            (category == "" || r.Category?.ToString() == category)
-            && (text.Length == 0 || r.Cause.Contains(text, StringComparison.CurrentCultureIgnoreCase)
-                                 || r.App.Contains(text, StringComparison.CurrentCultureIgnoreCase))).ToList();
-        IncidentTable.ItemsSource = rows;
-        TableSummary.Text = T("ui.table.summary", rows.Count, _rows.Count);
-    }
-
-    private void IncidentTable_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        DeleteSelectedButton.IsEnabled = IncidentTable.SelectedItems.Count > 0;
-
-    private void IncidentTable_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (IncidentTable.SelectedItem is IncidentRow row) Select(row.Id);
-    }
-
-    private void IncidentTable_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-    {
-        if (e.Key == System.Windows.Input.Key.Delete) DeleteSelected_Click(sender, e);
-        else if (e.Key == System.Windows.Input.Key.Enter && IncidentTable.SelectedItem is IncidentRow row)
-        {
-            Select(row.Id);
-            e.Handled = true;
-        }
+        if (!IsInitialized || _view is null) return;
+        SearchHint.Visibility = TableSearch.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        _view.Refresh();
+        TableSummary.Text = T("ui.table.summary", _view.Cast<object>().Count(), _items.Count);
     }
 
     private void DeleteSelected_Click(object sender, RoutedEventArgs e)
     {
-        var selected = IncidentTable.SelectedItems.OfType<IncidentRow>().ToList();
+        var selected = IncidentList.SelectedItems.OfType<IncidentListItem>().ToList();
         if (selected.Count == 0) return;
         if (MessageBox.Show(this, T("ui.table.deleteconfirm", selected.Count), "WhyLag", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-        foreach (var row in selected)
+        foreach (var item in selected)
         {
-            Host.Store.Delete(row.Id);
-            if (_items.FirstOrDefault(i => i.Id == row.Id) is { } item) _items.Remove(item);
+            Host.Store.Delete(item.Id);
+            _items.Remove(item);
         }
         UpdateCount();
-        _rows = _rows.Except(selected).ToList();
-        ApplyTableFilter();
+        if (!_view.IsEmpty) IncidentList.SelectedIndex = 0;
+        else ShowNoReport();
     }
 
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -355,14 +355,13 @@ public partial class MainWindow : Window
         {
             case System.Windows.Input.Key.F5:
                 LoadList();
-                if (TableView.Visibility == Visibility.Visible) Table_Click(this, e);
                 e.Handled = true;
                 break;
-            case System.Windows.Input.Key.Delete when ReportView.Visibility == Visibility.Visible:
+            case System.Windows.Input.Key.Delete when ReportPane.Visibility == Visibility.Visible && IncidentsView.Visibility == Visibility.Visible:
                 Delete_Click(this, e);
                 e.Handled = true;
                 break;
-            case System.Windows.Input.Key.C when ctrl && ReportView.Visibility == Visibility.Visible:
+            case System.Windows.Input.Key.C when ctrl && ReportPane.Visibility == Visibility.Visible && IncidentsView.Visibility == Visibility.Visible:
                 Copy_Click(this, e);
                 e.Handled = true;
                 break;
@@ -385,8 +384,6 @@ public partial class MainWindow : Window
 
     private void Sessions_Click(object sender, RoutedEventArgs e)
     {
-        _current = null;
-        IncidentList.SelectedItem = null;
         ShowView(SessionsView);
         var sessions = Host.Sessions.LoadAll();
         SessionList.ItemsSource = sessions.Select(s => new SessionView(
@@ -397,6 +394,7 @@ public partial class MainWindow : Window
             s.Causes.Count == 0 ? T("session.nocauses") : T("session.causes", string.Join(" · ", s.Causes.Select(c => $"{c.Title} ({c.Count}×)"))))).ToList();
         var running = Host.Recorder?.CurrentSessionApp;
         SessionStatus.Text = running is not null ? T("session.running", running) : sessions.Count == 0 ? T("session.none") : "";
+        SessionStatus.Visibility = SessionStatus.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void Link_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
@@ -420,8 +418,9 @@ public partial class MainWindow : Window
     private void Show(Incident incident)
     {
         _current = incident;
-        ShowView(ReportView);
-        ReportView.ScrollToTop();
+        ShowView(IncidentsView);
+        ReportEmpty.Visibility = Visibility.Collapsed;
+        ReportPane.Visibility = Visibility.Visible;
 
         var top = incident.Findings.FirstOrDefault();
         var color = Palette.For(top?.Category ?? FindingCategory.Background);
@@ -464,6 +463,7 @@ public partial class MainWindow : Window
         if (frameApp is not null) IgnoreAppText.Text = T("ui.ignoreapp", frameApp);
 
         ShowAi(incident.Explanation, null);
+        ReportView.ScrollToTop();
     }
 
     private void NoteBox_LostFocus(object sender, RoutedEventArgs e)
@@ -646,7 +646,7 @@ public partial class MainWindow : Window
         Host.Store.Delete(item.Id);
         _items.Remove(item);
         UpdateCount();
-        if (_items.Count > 0) IncidentList.SelectedIndex = 0;
-        else ShowLive();
+        if (!_view.IsEmpty) IncidentList.SelectedIndex = 0;
+        else ShowNoReport();
     }
 }

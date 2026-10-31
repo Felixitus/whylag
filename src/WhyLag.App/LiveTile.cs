@@ -11,9 +11,9 @@ internal sealed class LiveTile : Border
 {
     private readonly string _key;
     private readonly Func<Tick, string?>? _note;
-    private readonly TextBlock _value = new() { FontSize = 28, FontWeight = FontWeights.SemiBold };
-    private readonly TextBlock _unit = new() { FontSize = 13, Margin = new Thickness(4, 0, 0, 4), VerticalAlignment = VerticalAlignment.Bottom };
-    private readonly TextBlock _noteText = new() { FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
+    private readonly TextBlock _value = new() { FontSize = 22, FontWeight = FontWeights.SemiBold };
+    private readonly TextBlock _unit = new() { FontSize = 12, Margin = new Thickness(4, 0, 0, 3), VerticalAlignment = VerticalAlignment.Bottom };
+    private readonly TextBlock _noteText = new() { FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly Sparkline _spark;
 
     public LiveTile(string label, string key, string unit, FindingCategory category, double scale, Func<Tick, string?>? note = null)
@@ -21,12 +21,12 @@ internal sealed class LiveTile : Border
         _key = key;
         _note = note;
         Style = (Style)Application.Current.FindResource("Card");
-        MinWidth = 180;
-        Margin = new Thickness(0, 0, 12, 12);
-        Padding = new Thickness(16, 12, 16, 12);
+        Margin = new Thickness(0, 0, 10, 10);
+        Padding = new Thickness(14, 11, 14, 10);
+        System.Windows.Documents.Typography.SetNumeralAlignment(_value, FontNumeralAlignment.Tabular);
 
         var color = Palette.For(category);
-        _spark = new Sparkline { Height = 36, Margin = new Thickness(0, 8, 0, 0), Stroke = Palette.Brush(color), Minimum = scale };
+        _spark = new Sparkline { Height = 30, Margin = new Thickness(0, 6, 0, 0), Stroke = Palette.Brush(color), Minimum = scale };
         _unit.Text = unit;
         _unit.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         _noteText.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorTertiaryBrush");
@@ -34,10 +34,10 @@ internal sealed class LiveTile : Border
         var title = new TextBlock { Text = label, FontSize = 12 };
         title.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         var header = new StackPanel { Orientation = Orientation.Horizontal };
-        header.Children.Add(new System.Windows.Shapes.Ellipse { Width = 8, Height = 8, Fill = Palette.Brush(color), Margin = new Thickness(0, 0, 6, 0) });
+        header.Children.Add(new System.Windows.Shapes.Ellipse { Width = 7, Height = 7, Fill = Palette.Brush(color), Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center });
         header.Children.Add(title);
 
-        var valueRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+        var valueRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0) };
         valueRow.Children.Add(_value);
         valueRow.Children.Add(_unit);
 

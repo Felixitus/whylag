@@ -2,6 +2,25 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+### Changed
+
+- New interface: navigation on the left, own light and dark palette independent of the Windows accent color,
+  consistent buttons, switches, type and spacing.
+- *Incidents* shows list and report side by side and replaces the separate table and sidebar list; search, category
+  filter and bulk delete moved into the list (sorting by column is gone).
+- *Overview* shows today's numbers, the last minute and the latest incidents; the how-to only appears while there are
+  no incidents yet.
+- Report actions moved to the top of the report; settings are split into pages (*General*, *Detection*, *Frame
+  times*, *Network*, *Local AI*, *Data*) with switches.
+- An automatic incident no longer pulls the window away from the page you are looking at.
+- The update notice is visible on every page.
+
+### Added
+
+- `--screenshots` renders all views to PNG files with sample data.
+
 ## [0.1.2] - 2026-10-29
 
 ### Added

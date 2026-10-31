@@ -19,6 +19,7 @@ public partial class SettingsWindow : Window
     public SettingsWindow(WhyLagSettings current)
     {
         InitializeComponent();
+        NavGeneral.IsChecked = true;
         Icon = TrayIcon.WindowIcon();
         // Work on a copy so Cancel really discards everything.
         Result = JsonSerializer.Deserialize<WhyLagSettings>(JsonSerializer.Serialize(current, Json.Options), Json.Options)!;
@@ -215,11 +216,23 @@ public partial class SettingsWindow : Window
         }
     }
 
-    /// <summary>Scrolls to the section named in the button's Tag.</summary>
-    private void Nav_Click(object sender, RoutedEventArgs e)
+    /// <summary>The settings pages, in the order of the navigation.</summary>
+    internal string[] PageNames => ["General", "Detection", "Frames", "Network", "Ai", "Data"];
+
+    private void Nav_Checked(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: string name } && FindName(name) is FrameworkElement card)
-            Scroller.ScrollToVerticalOffset(Scroller.VerticalOffset + card.TranslatePoint(new Point(), Scroller).Y - 20);
+        if (sender is FrameworkElement { Tag: string page } && IsInitialized) ShowPage(page);
+    }
+
+    /// <summary>Shows one settings page.</summary>
+    internal void ShowPage(string page)
+    {
+        foreach (var name in PageNames)
+        {
+            if (FindName($"Page{name}") is UIElement element) element.Visibility = name == page ? Visibility.Visible : Visibility.Collapsed;
+            if (name == page && FindName($"Nav{name}") is System.Windows.Controls.RadioButton nav) nav.IsChecked = true;
+        }
+        Scroller.ScrollToTop();
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)

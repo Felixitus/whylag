@@ -24,7 +24,7 @@ public partial class App : Application
 
     public WhyLagSettings Settings { get; private set; } = new();
     public Recorder? Recorder { get; private set; }
-    public IncidentStore Store { get; } = new();
+    public IncidentStore Store { get; private set; } = new();
     public MachineInfo Machine { get; private set; } = new();
     public string? HotkeyError { get; private set; }
 
@@ -43,7 +43,7 @@ public partial class App : Application
     private bool _installingUpdate;
     private System.Windows.Threading.DispatcherTimer? _updateTimer;
 
-    public SessionStore Sessions { get; } = new();
+    public SessionStore Sessions { get; private set; } = new();
 
     /// <summary>Raised on the UI thread when a gaming session summary was saved.</summary>
     public event Action<GameSession>? SessionAdded;
@@ -158,10 +158,29 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        var shots = Array.IndexOf(e.Args, "--screenshots");
+        if (shots >= 0)
+        {
+            AppPaths.Root = ScreenshotMode.TemporaryRoot;
+            if (Directory.Exists(AppPaths.Root)) Directory.Delete(AppPaths.Root, recursive: true);
+            Store = new IncidentStore();
+            Sessions = new SessionStore();
+        }
         Settings = SettingsStore.Load();
         // "--lang <code>" overrides the language for this run without changing the settings (e.g. for screenshots).
         var langArg = Array.IndexOf(e.Args, "--lang");
         Loc.SetLanguage(langArg >= 0 && langArg + 1 < e.Args.Length ? e.Args[langArg + 1] : Settings.Language);
+
+        if (shots >= 0 && shots + 1 < e.Args.Length)
+        {
+            var theme = Array.IndexOf(e.Args, "--theme");
+            ApplyTheme(theme >= 0 && theme + 1 < e.Args.Length ? e.Args[theme + 1] : "Dark");
+            Machine = HardwareInfo.Machine();
+            var size = Array.IndexOf(e.Args, "--size");
+            var parts = size >= 0 && size + 1 < e.Args.Length ? e.Args[size + 1].Split('x') : ["1320", "860"];
+            _ = RunScreenshots(e.Args[shots + 1], int.Parse(parts[0]), int.Parse(parts[1]));
+            return;
+        }
 
         if (e.Args.FirstOrDefault() == LatencyHelperHost.Argument)
         {
@@ -206,6 +225,12 @@ public partial class App : Application
         };
 
         ApplyTheme(Settings.Theme);
+        // Follow Windows when the user switches between light and dark mode.
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += (_, args) =>
+        {
+            if (args.Category == Microsoft.Win32.UserPreferenceCategory.General)
+                Dispatcher.BeginInvoke(() => { if (!IsExiting && Settings.Theme == "System") Theme.Apply("System"); });
+        };
         Machine = HardwareInfo.Machine();
         CreateTray();
         _hotkey = new HotkeyManager();
@@ -223,6 +248,19 @@ public partial class App : Application
         _updateTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(3) };
         _updateTimer.Tick += (_, _) => _ = CheckForUpdatesAsync(atStartup: false);
         _updateTimer.Start();
+    }
+
+    private async Task RunScreenshots(string folder, int width, int height)
+    {
+        try
+        {
+            await ScreenshotMode.RunAsync(this, folder, width, height);
+        }
+        catch (Exception ex)
+        {
+            await File.WriteAllTextAsync(Path.Combine(folder, "error.txt"), ex.ToString());
+        }
+        Shutdown();
     }
 
     private void CreateTray()
@@ -330,6 +368,7 @@ public partial class App : Application
 #pragma warning disable WPF0001
         ThemeMode = theme switch { "Light" => ThemeMode.Light, "Dark" => ThemeMode.Dark, _ => ThemeMode.System };
 #pragma warning restore WPF0001
+        Theme.Apply(theme);
     }
 
     public void AddDemoIncident()

@@ -23,8 +23,8 @@ internal sealed class TimelineChart : FrameworkElement
         new(MetricKeys.WifiSignal, "chart.wifi", FindingCategory.Network, 100),
     ];
 
-    private const double LabelWidth = 70;
-    private const double LaneGap = 8;
+    private const double LabelWidth = 64;
+    private const double LaneGap = 6;
     private const double AxisHeight = 18;
     private Incident? _incident;
 
@@ -49,7 +49,7 @@ internal sealed class TimelineChart : FrameworkElement
         _incident is null ? [] : Lanes.Where(l => _incident.Ticks.Any(t => t.Get(l.Key).HasValue)).ToList();
 
     protected override Size MeasureOverride(Size availableSize) =>
-        new(double.IsInfinity(availableSize.Width) ? 600 : availableSize.Width, Math.Max(1, VisibleLanes().Count) * 46 + AxisHeight);
+        new(double.IsInfinity(availableSize.Width) ? 600 : availableSize.Width, Math.Max(1, VisibleLanes().Count) * 42 + AxisHeight);
 
     private Brush Res(string key, Color fallback) => TryFindResource(key) as Brush ?? new SolidColorBrush(fallback);
 
@@ -80,7 +80,7 @@ internal sealed class TimelineChart : FrameworkElement
         var x1 = Math.Clamp(X(ctx.FocusStart), LabelWidth, ActualWidth);
         var x2 = Math.Clamp(X(ctx.FocusEnd), LabelWidth, ActualWidth);
         var accent = TryFindResource("SystemAccentColor") is Color a ? a : Color.FromRgb(37, 99, 235);
-        dc.DrawRoundedRectangle(Palette.Brush(accent, 0.12), null, new Rect(x1, 0, Math.Max(0, x2 - x1), plotHeight), 4, 4);
+        dc.DrawRoundedRectangle(Palette.Brush(accent, 0.10), null, new Rect(x1, 0, Math.Max(0, x2 - x1), plotHeight), 4, 4);
 
         for (var i = 0; i < lanes.Count; i++)
         {
@@ -128,8 +128,8 @@ internal sealed class TimelineChart : FrameworkElement
             }
             line.Freeze();
             area.Freeze();
-            dc.DrawGeometry(Palette.Brush(color, 0.15), null, area);
-            dc.DrawGeometry(null, new Pen(Palette.Brush(color), 1.6) { LineJoin = PenLineJoin.Round }, line);
+            dc.DrawGeometry(Palette.Brush(color, 0.10), null, area);
+            dc.DrawGeometry(null, new Pen(Palette.Brush(color), 1.4) { LineJoin = PenLineJoin.Round }, line);
 
             if (lane.Key == MetricKeys.PingTargetMs)
             {

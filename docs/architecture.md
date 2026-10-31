@@ -38,6 +38,14 @@
   `Warnings`, register in `DefaultSources`.
 - **Language:** copy `en.json` to `<code>.json` and translate; a test checks keys and placeholders.
 
+## User interface
+
+`Theme.cs` holds the light and dark palette and replaces the Fluent theme's brushes by key; shared styles (buttons,
+navigation, switch, cards, type) are in `App.xaml`. New views use those styles instead of own colors and sizes.
+
+`WhyLag.exe --screenshots <folder> [--theme Dark|Light] [--lang en] [--size 1320x860]` renders every view to PNG with
+sample data in a temporary folder, also without a visible desktop. `docs/img` is made this way.
+
 ## Packaging
 
 | Script | Result |

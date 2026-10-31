@@ -6,7 +6,7 @@ Local-first · no telemetry · no admin rights · works without AI · 7 language
 
 ![WhyLag report](docs/img/report.png)
 
-![Live overview](docs/img/live.png)
+![Overview](docs/img/live.png)
 
 ## Why
 
@@ -27,7 +27,7 @@ minutes in memory, so the moment can still be analysed afterwards.
   filling your line (router traffic via UPnP, optional).
 - **Overlay** with fps, frame time, load, temperatures and ping – a normal topmost window, nothing is injected into games.
 - **Recurring patterns**: *"6× seen · usually between 21:00 and 23:00 · mostly on Tuesday"*.
-- **Incident table** with search, category filter and bulk delete; each report lists the recorded Windows events
+- **Incident list** by day with search, category filter and bulk delete; each report lists the recorded Windows events
   and keeps your own note.
 - **Driver latency (optional)**: a small elevated helper names drivers that block the CPU (audio crackles, input lag).
 - **Local AI (optional)**: a model on your PC via [Ollama](https://ollama.com) explains findings in plain language.
@@ -60,12 +60,12 @@ automatically when WhyLag starts (*Settings → General*). The portable version 
 
 ## Usage
 
-1. WhyLag starts in the tray. **Live overview** shows what it records; **Demo** shows a sample report.
+1. WhyLag starts in the tray. **Overview** shows what it records; **Demo** under *Incidents* adds a sample report.
 2. When something lags, press **Ctrl+Alt+L** and click the notification.
-3. **Recurring patterns** collects causes that keep coming back; **All incidents** lists everything in a table.
+3. **Incidents** lists everything by day next to the report; **Patterns** collects causes that keep coming back.
 4. Too many automatic incidents from one program? Use *Ignore hitches in …* in the report, or pause detection for an
    hour from the tray menu. A line that spikes all day? Turn off automatic detection for network spikes in
-   *Settings → General* – ping and packet loss are still recorded and shown in every report.
+   *Settings → Detection* – ping and packet loss are still recorded and shown in every report.
 
 Shortcuts in the window: `F5` refresh, `Del` delete the open incident, `Ctrl+C` copy its report.
 

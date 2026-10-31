@@ -3,7 +3,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <Authors>WhyLag contributors</Authors>
     <Company>WhyLag</Company>
     <Product>WhyLag</Product>

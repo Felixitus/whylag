@@ -1,6 +1,6 @@
 # WhyLag project audit
 
-Audit of version 0.1.3, 2026-11-01. Changes from this audit are listed in [CHANGELOG.md](CHANGELOG.md) under *Unreleased*.
+Audit of version 0.1.3, 2026-11-01. Changes from this audit are listed in [CHANGELOG.md](CHANGELOG.md) under *0.1.4*.
 Everything marked *verified* was run; everything else says what it is based on.
 
 ## 1. Executive summary

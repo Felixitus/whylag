@@ -26,9 +26,9 @@ internal sealed class HotkeyManager : IDisposable
     public string? Register(string gesture)
     {
         Unregister();
-        if (!TryParse(gesture, out var modifiers, out var key)) return $"'{gesture}' is not a valid hotkey.";
+        if (!TryParse(gesture, out var modifiers, out var key)) return Core.Localization.Loc.T("set.err.hotkey");
         _registered = RegisterHotKey(_source.Handle, HotkeyId, modifiers | ModNoRepeat, (uint)KeyInterop.VirtualKeyFromKey(key));
-        return _registered ? null : $"The hotkey {gesture} is already used by another program. Choose a different one in Settings.";
+        return _registered ? null : Core.Localization.Loc.T("err.hotkey.busy", gesture);
     }
 
     internal static bool TryParse(string gesture, out uint modifiers, out Key key)

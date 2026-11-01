@@ -572,5 +572,19 @@
   "set.section.recording": "Enregistrement",
   "set.section.reset": "Réinitialiser",
   "ui.live.recent": "Derniers incidents",
-  "ui.status.buffer": "{0} min {1} s en mémoire"
+  "ui.status.buffer": "{0} min {1} s en mémoire",
+  "ui.loading": "Chargement…",
+  "ui.ignoreapp.short": "Ignorer les saccades de ce programme",
+  "ui.provider": "Rapport pour le fournisseur…",
+  "ui.provider.tip": "Enregistre la liste des moments où votre ligne était lente alors que votre routeur répondait vite (30 derniers jours).",
+  "provider.title": "Rapport de connexion",
+  "provider.intro": "Mesuré chaque seconde par WhyLag sur ce PC. Sont listés les moments où le délai vers Internet a nettement augmenté alors que le routeur répondait toujours vite : la cause se situe donc au-delà du routeur. Les moments dont la cause est à domicile (Wi-Fi, envoi de données) ne sont pas listés.",
+  "provider.period": "Période : {0} – {1}",
+  "provider.none": "Aucun moment de ce type n'a été enregistré sur cette période.",
+  "provider.total": "Moments enregistrés : {0}, sur {1} jour(s).",
+  "provider.col.day": "Jour",
+  "provider.col.count": "Moments",
+  "provider.details": "Détails",
+  "err.hotkey.busy": "Le raccourci {0} est déjà utilisé par un autre programme. Choisissez-en un autre dans les paramètres.",
+  "update.noinstaller": "Cette version ne contient pas de programme d’installation ou de somme de contrôle."
 }

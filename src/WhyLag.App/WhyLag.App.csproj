@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -11,6 +11,8 @@
     <ApplicationIcon>..\..\assets\whylag.ico</ApplicationIcon>
     <!-- WPF's Fluent theme (ThemeMode) is marked experimental in .NET 10. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <!-- A tray app that sleeps most of the time: no background GC thread, memory goes back to Windows sooner. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>

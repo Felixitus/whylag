@@ -14,7 +14,10 @@ public sealed class TemperatureSource : IMetricSource
 {
     private const string HwInfoMap = @"Global\HWiNFO_SENS_SM2";
     private const uint TemperatureReading = 1;
+    /// <summary>Neither tool running is the normal case; looking for them is not free, so it happens rarely then.</summary>
+    private static readonly TimeSpan ProbeInterval = TimeSpan.FromSeconds(30);
     private DateTime _lastWmi = DateTime.MinValue;
+    private DateTime _nextProbe = DateTime.MinValue;
     private (double? Cpu, double? Gpu) _wmiCache;
 
     public string Name => WhyLag.Core.Localization.Loc.T("source.temperature");
@@ -25,7 +28,9 @@ public sealed class TemperatureSource : IMetricSource
 
     public void Collect(Tick tick)
     {
+        if (DateTime.UtcNow < _nextProbe) return;
         var (cpu, gpu) = ReadHwInfo() ?? ReadLibreHardwareMonitor();
+        if (cpu is null && gpu is null) _nextProbe = DateTime.UtcNow + ProbeInterval;
         if (cpu is { } c) tick.Set(MetricKeys.TempCpu, c);
         if (gpu is { } g) tick.Set(MetricKeys.TempGpu, g);
     }
@@ -95,7 +100,7 @@ public sealed class TemperatureSource : IMetricSource
                     gpu = value;
             }
         }
-        catch (ManagementException)
+        catch (Exception ex) when (ex is ManagementException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException or InvalidCastException or FormatException)
         {
             // Namespace missing: LibreHardwareMonitor is not running.
         }

@@ -572,5 +572,19 @@
   "set.section.recording": "Nagrywanie",
   "set.section.reset": "Resetowanie",
   "ui.live.recent": "Ostatnie incydenty",
-  "ui.status.buffer": "{0} min {1} s w pamięci"
+  "ui.status.buffer": "{0} min {1} s w pamięci",
+  "ui.loading": "Wczytywanie…",
+  "ui.ignoreapp.short": "Ignoruj przycięcia w tym programie",
+  "ui.provider": "Raport dla dostawcy…",
+  "ui.provider.tip": "Zapisuje listę chwil, w których łącze było wolne, choć router odpowiadał szybko (ostatnie 30 dni).",
+  "provider.title": "Raport o połączeniu",
+  "provider.intro": "Mierzone raz na sekundę przez WhyLag na tym komputerze. Wymieniono chwile, w których opóźnienie do internetu wyraźnie rosło, a router nadal odpowiadał szybko, więc przyczyna leży poza routerem. Chwile z przyczyną w domu (Wi-Fi, własne wysyłanie) nie są wymienione.",
+  "provider.period": "Okres: {0} – {1}",
+  "provider.none": "W tym okresie nie zarejestrowano takich chwil.",
+  "provider.total": "Zarejestrowane chwile: {0}, dni: {1}.",
+  "provider.col.day": "Dzień",
+  "provider.col.count": "Chwile",
+  "provider.details": "Szczegóły",
+  "err.hotkey.busy": "Skrót {0} jest już używany przez inny program. Wybierz inny w ustawieniach.",
+  "update.noinstaller": "To wydanie nie zawiera instalatora lub sumy kontrolnej."
 }

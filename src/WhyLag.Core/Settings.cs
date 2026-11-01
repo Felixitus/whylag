@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace WhyLag.Core;
 
@@ -82,6 +83,23 @@ public static class Json
 
     /// <summary>Single-line JSON, e.g. for streaming over a pipe.</summary>
     public static readonly JsonSerializerOptions Compact = new(Options) { WriteIndented = false };
+
+    /// <summary>Reads incidents without their recorded data (see <see cref="IncidentStore.LoadSummaries"/>).</summary>
+    public static readonly JsonSerializerOptions Summary = new(Options)
+    {
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { SkipRecordedData } },
+    };
+
+    private static void SkipRecordedData(JsonTypeInfo info)
+    {
+        static void KeepOnly(JsonTypeInfo type, Func<string, bool> keep)
+        {
+            foreach (var property in type.Properties.Where(p => !keep(p.Name)).ToList()) type.Properties.Remove(property);
+        }
+
+        if (info.Type == typeof(Incident)) KeepOnly(info, name => name is not ("events" or "longTerm" or "machine"));
+        else if (info.Type == typeof(Tick)) KeepOnly(info, name => name == "foregroundProcess");
+    }
 }
 
 public static class SettingsStore

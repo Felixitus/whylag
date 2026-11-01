@@ -572,5 +572,19 @@
   "set.section.recording": "Aufzeichnung",
   "set.section.reset": "Zurücksetzen",
   "ui.live.recent": "Letzte Vorfälle",
-  "ui.status.buffer": "{0} min {1} s im Speicher"
+  "ui.status.buffer": "{0} min {1} s im Speicher",
+  "ui.loading": "Wird geladen…",
+  "ui.ignoreapp.short": "Ruckler in diesem Programm ignorieren",
+  "ui.provider": "Bericht für Provider…",
+  "ui.provider.tip": "Speichert eine Liste der Momente, in denen deine Leitung langsam war, obwohl dein Router schnell war (letzte 30 Tage).",
+  "provider.title": "Verbindungsbericht",
+  "provider.intro": "Einmal pro Sekunde von WhyLag auf diesem PC gemessen. Aufgeführt sind Momente, in denen die Verzögerung ins Internet deutlich stieg, während der eigene Router weiter schnell antwortete – die Ursache liegt also hinter dem Router. Momente mit einer Ursache im eigenen Heimnetz (WLAN, eigener Upload) sind nicht aufgeführt.",
+  "provider.period": "Zeitraum: {0} – {1}",
+  "provider.none": "In diesem Zeitraum wurden keine solchen Momente aufgezeichnet.",
+  "provider.total": "Aufgezeichnete Momente: {0}, an {1} Tag(en).",
+  "provider.col.day": "Tag",
+  "provider.col.count": "Momente",
+  "provider.details": "Einzelheiten",
+  "err.hotkey.busy": "Das Tastenkürzel {0} wird schon von einem anderen Programm benutzt. Wähle in den Einstellungen ein anderes.",
+  "update.noinstaller": "Dieses Release enthält keinen Installer oder keine Prüfsumme dafür."
 }

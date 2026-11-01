@@ -572,5 +572,19 @@
   "set.section.recording": "Recording",
   "set.section.reset": "Reset",
   "ui.live.recent": "Latest incidents",
-  "ui.status.buffer": "{0} min {1} s in memory"
+  "ui.status.buffer": "{0} min {1} s in memory",
+  "ui.loading": "Loading…",
+  "ui.ignoreapp.short": "Ignore hitches in this program",
+  "ui.provider": "Report for provider…",
+  "ui.provider.tip": "Saves a list of the moments in which your line was slow although your router was fast (last 30 days).",
+  "provider.title": "Connection report",
+  "provider.intro": "Measured once per second by WhyLag on this PC. Listed are moments in which the delay to the internet rose clearly while the own router kept answering quickly, so the cause lies beyond the router. Moments with a cause inside the home (Wi-Fi, own upload) are not listed.",
+  "provider.period": "Period: {0} – {1}",
+  "provider.none": "No such moments were recorded in this period.",
+  "provider.total": "Recorded moments: {0}, on {1} day(s).",
+  "provider.col.day": "Day",
+  "provider.col.count": "Moments",
+  "provider.details": "Details",
+  "err.hotkey.busy": "The hotkey {0} is already used by another program. Choose a different one in Settings.",
+  "update.noinstaller": "This release has no installer or checksum for it."
 }

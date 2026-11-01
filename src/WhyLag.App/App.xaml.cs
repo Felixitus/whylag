@@ -177,8 +177,10 @@ public partial class App : Application
             ApplyTheme(theme >= 0 && theme + 1 < e.Args.Length ? e.Args[theme + 1] : "Dark");
             Machine = HardwareInfo.Machine();
             var size = Array.IndexOf(e.Args, "--size");
-            var parts = size >= 0 && size + 1 < e.Args.Length ? e.Args[size + 1].Split('x') : ["1320", "860"];
-            _ = RunScreenshots(e.Args[shots + 1], int.Parse(parts[0]), int.Parse(parts[1]));
+            var parts = size >= 0 && size + 1 < e.Args.Length ? e.Args[size + 1].Split('x') : [];
+            var width = parts.Length == 2 && int.TryParse(parts[0], out var w) ? w : 1320;
+            var height = parts.Length == 2 && int.TryParse(parts[1], out var h) ? h : 860;
+            _ = RunScreenshots(e.Args[shots + 1], width, height);
             return;
         }
 
@@ -216,6 +218,15 @@ public partial class App : Application
         _showRequested = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
         ThreadPool.RegisterWaitForSingleObject(_showRequested, (_, _) => Dispatcher.BeginInvoke(() => { if (!IsExiting) ShowMain(); }), null, Timeout.Infinite, executeOnlyOnce: false);
 
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex) Log(ex);
+        };
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            Log(args.Exception);
+            args.SetObserved();
+        };
         DispatcherUnhandledException += (_, args) =>
         {
             Log(args.Exception);
@@ -283,6 +294,7 @@ public partial class App : Application
             Recorder?.Dispose();
             var (metrics, events) = DefaultSources.Create(settings, Machine);
             Recorder = new Recorder(settings, metrics, events, Machine, Store);
+            Recorder.Failed += Log;
             Recorder.IncidentCaptured += incident => Dispatcher.BeginInvoke(() => OnIncident(incident));
             Recorder.SessionEnded += session => Dispatcher.BeginInvoke(() => OnSession(session));
             Recorder.Start();
@@ -310,14 +322,15 @@ public partial class App : Application
         || a.FrameTimesEnabled != b.FrameTimesEnabled || a.DriverLatencyHelper != b.DriverLatencyHelper
         || a.RouterTraffic != b.RouterTraffic || a.Temperatures != b.Temperatures;
 
-    private void CaptureNow(TriggerKind trigger)
+    public void CaptureNow(TriggerKind trigger, string? detail = null)
     {
         if (Recorder is not { } recorder) return;
+        detail ??= trigger == TriggerKind.Hotkey ? Settings.Hotkey : T("trigger.tray");
         Task.Run(() =>
         {
             try
             {
-                recorder.Capture(trigger, trigger == TriggerKind.Hotkey ? Settings.Hotkey : T("trigger.tray"));
+                recorder.Capture(trigger, detail);
             }
             catch (Exception ex)
             {
@@ -385,7 +398,12 @@ public partial class App : Application
         if (_window is null)
         {
             _window = new MainWindow();
-            _window.Closed += (_, _) => _window = null;
+            _window.Closed += (_, _) =>
+            {
+                _window = null;
+                // Most of the time WhyLag runs in the tray; what the window used need not stay.
+                Dispatcher.BeginInvoke(() => GC.Collect(), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            };
         }
         _window.Show();
         if (_window.WindowState == WindowState.Minimized) _window.WindowState = WindowState.Normal;
@@ -442,15 +460,19 @@ public partial class App : Application
         base.OnExit(e);
     }
 
+    /// <summary>Appends to the error log; the log keeps one older file and never grows beyond about 2 MB.</summary>
     public static void Log(Exception ex)
     {
         try
         {
             Directory.CreateDirectory(AppPaths.LogsDir);
-            File.AppendAllText(Path.Combine(AppPaths.LogsDir, "whylag.log"), $"{DateTimeOffset.Now:O} {ex}\n");
+            var path = Path.Combine(AppPaths.LogsDir, "whylag.log");
+            if (File.Exists(path) && new FileInfo(path).Length > 1024 * 1024) File.Move(path, path + ".1", overwrite: true);
+            File.AppendAllText(path, $"{DateTimeOffset.Now:O} {ex}\n");
         }
-        catch (IOException)
+        catch (Exception logging) when (logging is IOException or UnauthorizedAccessException)
         {
+            // Nothing sensible is left to do when even the log cannot be written.
         }
     }
 }

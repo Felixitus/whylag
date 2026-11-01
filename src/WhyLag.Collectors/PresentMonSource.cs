@@ -17,6 +17,8 @@ public sealed class PresentMonSource : IMetricSource
     private const string SessionName = "WhyLag";
     private const int MaxRestarts = 3;
     private const int MinFramesPerSecond = 10;
+    /// <summary>While nobody collects (recording paused) frames are dropped instead of piling up in memory.</summary>
+    private const int MaxQueuedFrames = 20_000;
     private static readonly HashSet<string> Ignored = new(StringComparer.OrdinalIgnoreCase) { "<unknown>", "dwm.exe" };
 
     private readonly ConcurrentQueue<(int Pid, string App, double Ms)> _frames = new();
@@ -74,7 +76,7 @@ public sealed class PresentMonSource : IMetricSource
                     header = line.Split(',').Select((name, i) => (name, i)).ToDictionary(x => x.name, x => x.i, StringComparer.OrdinalIgnoreCase);
                 return;
             }
-            if (ParseLine(line, header) is { } frame && !Ignored.Contains(frame.App)) _frames.Enqueue(frame);
+            if (_frames.Count < MaxQueuedFrames && ParseLine(line, header) is { } frame && !Ignored.Contains(frame.App)) _frames.Enqueue(frame);
         };
         process.ErrorDataReceived += (_, e) =>
         {
@@ -112,6 +114,7 @@ public sealed class PresentMonSource : IMetricSource
 
         var frames = new List<(int Pid, string App, double Ms)>();
         while (_frames.TryDequeue(out var f)) frames.Add(f);
+        if (frames.Count > 0) _restarts = 0;
 
         // Desktop programs present only when something changes; only continuously rendering apps (games, video)
         // reach 10 frames per second, and only for those frame times mean something. WhyLag's own window is ignored.

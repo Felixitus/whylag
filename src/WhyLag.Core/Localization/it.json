@@ -572,5 +572,19 @@
   "set.section.recording": "Registrazione",
   "set.section.reset": "Ripristino",
   "ui.live.recent": "Ultimi incidenti",
-  "ui.status.buffer": "{0} min {1} s in memoria"
+  "ui.status.buffer": "{0} min {1} s in memoria",
+  "ui.loading": "Caricamento…",
+  "ui.ignoreapp.short": "Ignora gli scatti di questo programma",
+  "ui.provider": "Report per il provider…",
+  "ui.provider.tip": "Salva un elenco dei momenti in cui la linea era lenta mentre il router rispondeva velocemente (ultimi 30 giorni).",
+  "provider.title": "Report di connessione",
+  "provider.intro": "Misurato una volta al secondo da WhyLag su questo PC. Sono elencati i momenti in cui il ritardo verso Internet è aumentato nettamente mentre il router continuava a rispondere velocemente: la causa è quindi oltre il router. I momenti con causa in casa (Wi-Fi, upload proprio) non sono elencati.",
+  "provider.period": "Periodo: {0} – {1}",
+  "provider.none": "In questo periodo non sono stati registrati momenti simili.",
+  "provider.total": "Momenti registrati: {0}, in {1} giorno/i.",
+  "provider.col.day": "Giorno",
+  "provider.col.count": "Momenti",
+  "provider.details": "Dettagli",
+  "err.hotkey.busy": "La scorciatoia {0} è già usata da un altro programma. Scegline un'altra nelle impostazioni.",
+  "update.noinstaller": "Questa versione non contiene il programma di installazione o il checksum."
 }

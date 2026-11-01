@@ -21,6 +21,8 @@ internal static class UpdateChecker
 
     public static Version Current => typeof(UpdateChecker).Assembly.GetName().Version ?? new Version(0, 0);
 
+    private const long MaxInstallerBytes = 400 * 1024 * 1024;
+
     private static string DownloadDir => Path.Combine(Path.GetTempPath(), "WhyLag-update");
 
     /// <summary>Removes the installer of a finished update.</summary>
@@ -64,11 +66,11 @@ internal static class UpdateChecker
     public static async Task<string> DownloadAsync(ReleaseInfo release, IProgress<int> progress, CancellationToken ct = default)
     {
         if (release.SetupUrl is null || release.SetupName is null || release.ChecksumsUrl is null)
-            throw new InvalidDataException("The release has no installer or checksum file.");
+            throw new InvalidDataException(Core.Localization.Loc.T("update.noinstaller"));
 
         using var http = CreateClient(TimeSpan.FromMinutes(10));
         var expected = Updates.ExpectedHash(await http.GetStringAsync(release.ChecksumsUrl, ct).ConfigureAwait(false), release.SetupName)
-                       ?? throw new InvalidDataException("The installer is not listed in SHA256SUMS.txt.");
+                       ?? throw new InvalidDataException(Core.Localization.Loc.T("update.noinstaller"));
 
         var dir = DownloadDir;
         Directory.CreateDirectory(dir);
@@ -77,6 +79,7 @@ internal static class UpdateChecker
         {
             response.EnsureSuccessStatusCode();
             var total = response.Content.Headers.ContentLength ?? 0;
+            if (total > MaxInstallerBytes) throw new InvalidDataException(Core.Localization.Loc.T("update.badhash"));
             await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await using var target = File.Create(path);
             var buffer = new byte[81920];
@@ -86,6 +89,7 @@ internal static class UpdateChecker
             {
                 await target.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
                 done += read;
+                if (done > MaxInstallerBytes) throw new InvalidDataException(Core.Localization.Loc.T("update.badhash"));
                 if (total > 0) progress.Report((int)(done * 100 / total));
             }
         }
@@ -156,6 +160,6 @@ internal static class BugReport
         var log = Path.Combine(AppPaths.LogsDir, "whylag.log");
         if (File.Exists(log)) Add("whylag.log", string.Join('\n', File.ReadLines(log).TakeLast(500)));
 
-        if (store.LoadAll().FirstOrDefault() is { } latest) Add("latest-report.md", ReportBuilder.Markdown(latest, anonymize: true));
+        if (store.ListIds().FirstOrDefault() is { } id && store.Load(id) is { } latest) Add("latest-report.md", ReportBuilder.Markdown(latest, anonymize: true));
     }
 }

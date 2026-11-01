@@ -22,6 +22,9 @@ public sealed class ForegroundSource : IMetricSource
 
     public void Collect(Tick tick)
     {
+        var input = new LastInputInfo { Size = (uint)Marshal.SizeOf<LastInputInfo>() };
+        if (GetLastInputInfo(ref input)) tick.Set(MetricKeys.InputIdleSeconds, unchecked((uint)Environment.TickCount - input.Time) / 1000.0);
+
         var hwnd = GetForegroundWindow();
         if (hwnd == IntPtr.Zero) return;
         GetWindowThreadProcessId(hwnd, out var pid);
@@ -61,6 +64,17 @@ public sealed class ForegroundSource : IMetricSource
     public void Dispose()
     {
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct LastInputInfo
+    {
+        public uint Size;
+        public uint Time;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetLastInputInfo(ref LastInputInfo info);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect

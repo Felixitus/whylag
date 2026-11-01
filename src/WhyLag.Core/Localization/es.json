@@ -572,5 +572,19 @@
   "set.section.recording": "Grabación",
   "set.section.reset": "Restablecer",
   "ui.live.recent": "Últimos incidentes",
-  "ui.status.buffer": "{0} min {1} s en memoria"
+  "ui.status.buffer": "{0} min {1} s en memoria",
+  "ui.loading": "Cargando…",
+  "ui.ignoreapp.short": "Ignorar los tirones de este programa",
+  "ui.provider": "Informe para el proveedor…",
+  "ui.provider.tip": "Guarda una lista de los momentos en que tu línea iba lenta aunque el router respondía rápido (últimos 30 días).",
+  "provider.title": "Informe de conexión",
+  "provider.intro": "Medido una vez por segundo por WhyLag en este PC. Se listan los momentos en que el retardo hacia Internet subió claramente mientras el router seguía respondiendo rápido, por lo que la causa está más allá del router. No se incluyen momentos con causa en casa (Wi-Fi, subida propia).",
+  "provider.period": "Período: {0} – {1}",
+  "provider.none": "No se registraron momentos así en este período.",
+  "provider.total": "Momentos registrados: {0}, en {1} día(s).",
+  "provider.col.day": "Día",
+  "provider.col.count": "Momentos",
+  "provider.details": "Detalles",
+  "err.hotkey.busy": "El atajo {0} ya lo usa otro programa. Elige otro en la configuración.",
+  "update.noinstaller": "Esta versión no incluye instalador o suma de comprobación."
 }

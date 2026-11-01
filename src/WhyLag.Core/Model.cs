@@ -31,6 +31,7 @@ public static class MetricKeys
     public const string TcpRetransPct = "net.tcp.retrans.pct";    // resent share of sent segments
     public const string DpcTimePct = "cpu.dpc.pct";          // DPC time of the busiest core
     public const string IsrTimePct = "cpu.isr.pct";          // interrupt time of the busiest core
+    public const string InputIdleSeconds = "input.idle.s";   // seconds since the last keyboard or mouse input
     public const string DpcMaxUs = "lat.dpc.max.us";         // longest single DPC (elevated helper)
     public const string IsrMaxUs = "lat.isr.max.us";         // longest single ISR (elevated helper)
     public const string TempCpu = "temp.cpu";                // °C, from HWiNFO or LibreHardwareMonitor

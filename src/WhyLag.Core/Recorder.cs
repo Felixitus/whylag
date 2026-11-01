@@ -10,6 +10,10 @@ namespace WhyLag.Core;
 public sealed class Recorder : IDisposable
 {
     private const int MaxConsecutiveFailures = 5;
+    /// <summary>A source that keeps failing is tried again once a minute (a driver update or a restarted service can fix it).</summary>
+    private const int RetryFailedAfterTicks = 60;
+    /// <summary>Longer gaps are sleep or hibernation, not a frozen PC.</summary>
+    private const double SuspendedGapMs = 30_000;
     private static readonly TimeSpan SavedHistory = TimeSpan.FromMinutes(3);
     private static readonly TimeSpan AutoCaptureDelay = TimeSpan.FromSeconds(10);
 
@@ -29,6 +33,7 @@ public sealed class Recorder : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly Lock _captureLock = new();
     private Task? _loop;
+    private long _retryCounter;
     private SpikeSignal? _pendingAuto;
     private DateTimeOffset _lastAutoCapture = DateTimeOffset.MinValue;
 
@@ -46,6 +51,8 @@ public sealed class Recorder : IDisposable
     }
 
     public event Action<Incident>? IncidentCaptured;
+    /// <summary>Errors the recorder survived, for the log.</summary>
+    public event Action<Exception>? Failed;
     public event Action<Tick>? TickRecorded;
     /// <summary>Raised (on the recorder thread) when a gaming session of at least five minutes ended.</summary>
     public event Action<GameSession>? SessionEnded;
@@ -53,7 +60,8 @@ public sealed class Recorder : IDisposable
     /// <summary>The game currently being played, if a session is running.</summary>
     public string? CurrentSessionApp => _sessions.CurrentApp;
 
-    public bool Paused { get; set; }
+    public bool Paused { get => _paused; set => _paused = value; }
+    private volatile bool _paused;
 
     /// <summary>Automatic detection is suspended until this time (e.g. during a long build or a video render).</summary>
     public DateTimeOffset AutoDetectPausedUntil { get; set; }
@@ -120,17 +128,30 @@ public sealed class Recorder : IDisposable
             var gapMs = last is null ? 0 : Math.Max(0, (now - last.Value).TotalMilliseconds - 1000);
             last = now;
             if (Paused) continue;
-
-            var tick = new Tick { Timestamp = DateTimeOffset.Now };
-            tick.Set(MetricKeys.TickGapMs, gapMs);
-            CollectAll(tick);
-            _ticks.Add(tick);
-            TickRecorded?.Invoke(tick);
-            _longTerm.Add(tick);
-            if (_sessions.Feed(tick) is { } session) SessionEnded?.Invoke(session);
-
-            if (_settings.AutoDetect && tick.Timestamp >= AutoDetectPausedUntil) HandleAutoDetect(tick);
+            try
+            {
+                Record(gapMs, DateTimeOffset.Now);
+            }
+            catch (Exception ex)
+            {
+                // One bad second must not end the recording for the rest of the day.
+                Failed?.Invoke(ex);
+            }
         }
+    }
+
+    /// <summary>Records one second.</summary>
+    internal void Record(double gapMs, DateTimeOffset now)
+    {
+        var tick = new Tick { Timestamp = now };
+        tick.Set(MetricKeys.TickGapMs, gapMs >= SuspendedGapMs ? 0 : gapMs);
+        CollectAll(tick);
+        _ticks.Add(tick);
+        _longTerm.Add(tick);
+        TickRecorded?.Invoke(tick);
+        if (_sessions.Feed(tick) is { } session) SessionEnded?.Invoke(session);
+
+        if (_settings.AutoDetect && tick.Timestamp >= AutoDetectPausedUntil) HandleAutoDetect(tick);
     }
 
     private void CollectAll(Tick tick)
@@ -138,7 +159,7 @@ public sealed class Recorder : IDisposable
         foreach (var source in _metricSources)
         {
             _failures.TryGetValue(source, out var failures);
-            if (failures >= MaxConsecutiveFailures) continue;
+            if (failures >= MaxConsecutiveFailures && ++_retryCounter % RetryFailedAfterTicks != 0) continue;
             try
             {
                 source.Collect(tick);
@@ -170,7 +191,18 @@ public sealed class Recorder : IDisposable
         {
             _pendingAuto = null;
             _lastAutoCapture = pending.Timestamp;
-            Capture(TriggerKind.Automatic, pending.Description, pending.Timestamp);
+            // Rules and the disk must not delay the next second, or the recording would measure itself.
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    Capture(TriggerKind.Automatic, pending.Description, pending.Timestamp);
+                }
+                catch (Exception ex)
+                {
+                    Failed?.Invoke(ex);
+                }
+            });
         }
     }
 

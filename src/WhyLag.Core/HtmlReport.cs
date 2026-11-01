@@ -24,6 +24,7 @@ public static class HtmlReport
         var time = incident.TriggeredAt.ToLocalTime();
         sb.Append($$"""
             <!doctype html><html lang="{{Language}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
             <title>{{E(T("report.title", time.ToString("g", Culture)))}}</title>
             <style>
             :root{color-scheme:light dark;--bg:#f6f7f9;--card:#fff;--text:#1c2330;--muted:#5e6878;--line:#e2e5ea}

@@ -42,7 +42,7 @@ public sealed class SessionTracker
     private readonly List<double> _cpu = new();
     private readonly List<double> _gpu = new();
     private readonly List<double> _ping = new();
-    private readonly RingBuffer<double> _medians = new(120);
+    private RingBuffer<double> _medians = new(120);
     private int _hitches;
     private readonly List<Incident> _incidents = new();
 
@@ -52,7 +52,7 @@ public sealed class SessionTracker
     public GameSession? Feed(Tick tick)
     {
         var playing = tick.ForegroundFullscreen == true && tick.FrameApp is { } app && tick.ForegroundProcess is { } fg
-                      && app.Equals(fg, StringComparison.OrdinalIgnoreCase) && tick.Get(MetricKeys.FramesFps) >= 20;
+                      && app.Equals(fg, StringComparison.OrdinalIgnoreCase) && !GamePrograms.IsNonGame(app) && tick.Get(MetricKeys.FramesFps) >= 20;
 
         if (playing && _app is not null && !_app.Equals(tick.FrameApp, StringComparison.OrdinalIgnoreCase))
         {
@@ -84,6 +84,7 @@ public sealed class SessionTracker
         _gpu.Clear();
         _ping.Clear();
         _hitches = 0;
+        _medians = new RingBuffer<double>(120);
         _incidents.Clear();
     }
 
@@ -137,12 +138,16 @@ public sealed class SessionTracker
 /// <summary>Stores session summaries as small JSON files next to the incidents.</summary>
 public sealed class SessionStore(string? directory = null)
 {
+    private const int MaxSessions = 300;
+
     public string Directory { get; } = directory ?? Path.Combine(AppPaths.Root, "sessions");
 
     public void Save(GameSession session)
     {
         System.IO.Directory.CreateDirectory(Directory);
-        File.WriteAllText(Path.Combine(Directory, $"{session.Id}.json"), JsonSerializer.Serialize(session, Json.Options));
+        var name = string.Concat(session.Id.Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '_'));
+        File.WriteAllText(Path.Combine(Directory, $"{name}.json"), JsonSerializer.Serialize(session, Json.Options));
+        foreach (var old in System.IO.Directory.GetFiles(Directory, "*.json").OrderDescending(StringComparer.Ordinal).Skip(MaxSessions)) File.Delete(old);
     }
 
     public List<GameSession> LoadAll()
@@ -152,16 +157,11 @@ public sealed class SessionStore(string? directory = null)
             .Select(f =>
             {
                 try { return JsonSerializer.Deserialize<GameSession>(File.ReadAllText(f), Json.Options); }
-                catch (JsonException) { return null; }
+                catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException) { return null; }
             })
             .OfType<GameSession>()
+            .Where(s => !GamePrograms.IsNonGame(s.App)) // saved by versions that counted browsers as games
             .OrderByDescending(s => s.Start)
             .ToList();
-    }
-
-    public void Delete(string id)
-    {
-        var path = Path.Combine(Directory, $"{id}.json");
-        if (File.Exists(path)) File.Delete(path);
     }
 }

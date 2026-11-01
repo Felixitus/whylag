@@ -4,21 +4,12 @@ namespace WhyLag.Core;
 
 public sealed record SpikeSignal(DateTimeOffset Timestamp, string Metric, double Value, double Baseline, string Description);
 
-/// <summary>
-/// Detects moments worth an automatic incident. Deliberately conservative: only signals that are
-/// rarely "normal" (system stalls, network latency spikes, packet loss). Full CPU or GPU load is
-/// expected during games and builds, so it never triggers on its own.
-/// </summary>
-public sealed class SpikeDetector
+public static class GamePrograms
 {
-    private readonly RingBuffer<double> _gatewayHistory = new(120);
-    private readonly RingBuffer<double> _targetHistory = new(120);
-    private readonly RingBuffer<double> _frameHistory = new(120);
-    private int _targetLostStreak;
-
     /// <summary>
     /// Programs that render continuously but are not games. Their frame hiccups (a paused video, an idle tab)
-    /// are not worth an automatic incident; a manual capture still shows their frame times.
+    /// are not worth an automatic incident and a video in fullscreen is no gaming session; a manual capture still
+    /// shows their frame times.
     /// </summary>
     private static readonly HashSet<string> NonGames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -27,6 +18,23 @@ public sealed class SpikeDetector
         "whatsapp", "telegram", "steamwebhelper", "epicgameslauncher", "battle.net", "webwallpaper64", "wallpaper64",
         "wallpaper32", "lively", "rainmeter",
     };
+
+    public static bool IsNonGame(string app) => NonGames.Contains(app);
+}
+
+/// <summary>
+/// Detects moments worth an automatic incident. Deliberately conservative: only signals that are
+/// rarely "normal" (system stalls, network latency spikes, packet loss). Full CPU or GPU load is
+/// expected during games and builds, so it never triggers on its own.
+/// </summary>
+public sealed class SpikeDetector
+{
+    private const double AwayAfterSeconds = 300;
+
+    private readonly RingBuffer<double> _gatewayHistory = new(120);
+    private readonly RingBuffer<double> _targetHistory = new(120);
+    private readonly RingBuffer<double> _frameHistory = new(120);
+    private int _targetLostStreak;
 
     /// <summary>Programs the user chose to ignore ("Ignore hitches in …").</summary>
     public IReadOnlySet<string> IgnoredApps { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -45,7 +53,10 @@ public sealed class SpikeDetector
 
         if (tick.Get(MetricKeys.TickGapMs) is >= 2000 and var gap)
             return new SpikeSignal(tick.Timestamp, MetricKeys.TickGapMs, gap, 0, T("spike.stall", Stats.Round(gap)));
-        if (!DetectNetwork) return frames;
+        // Nobody at the PC and no game in front: a ping spike harms no one, and a line that spikes at night would
+        // otherwise fill the list. (A controller counts as no input, hence the check for fullscreen.)
+        var away = tick.Get(MetricKeys.InputIdleSeconds) >= AwayAfterSeconds && tick.ForegroundFullscreen != true;
+        if (!DetectNetwork || away) return frames;
         return frames ?? internet ?? router ?? (_targetLostStreak == 2
             ? new SpikeSignal(tick.Timestamp, MetricKeys.PingTargetLost, 2, 0, T("spike.loss"))
             : null);
@@ -58,7 +69,7 @@ public sealed class SpikeDetector
     private SpikeSignal? FrameSpike(Tick tick)
     {
         if (tick.Get(MetricKeys.FramesMaxMs) is not { } max || tick.Get(MetricKeys.FramesMedianMs) is not { } median
-            || tick.Get(MetricKeys.FramesFps) < 20 || (tick.FrameApp is { } app && (NonGames.Contains(app) || IgnoredApps.Contains(app)))) return null;
+            || tick.Get(MetricKeys.FramesFps) < 20 || (tick.FrameApp is { } app && (GamePrograms.IsNonGame(app) || IgnoredApps.Contains(app)))) return null;
         // Only a game in front that fills the screen counts; windowed programs hitch harmlessly all the time.
         if (tick.ForegroundFullscreen == false) return null;
         if (tick.ForegroundProcess is { } fg && tick.FrameApp is { } fa && !fg.Equals(fa, StringComparison.OrdinalIgnoreCase)) return null;

@@ -572,5 +572,19 @@
   "set.section.recording": "Gravação",
   "set.section.reset": "Redefinir",
   "ui.live.recent": "Últimos incidentes",
-  "ui.status.buffer": "{0} min {1} s na memória"
+  "ui.status.buffer": "{0} min {1} s na memória",
+  "ui.loading": "Carregando…",
+  "ui.ignoreapp.short": "Ignorar travamentos neste programa",
+  "ui.provider": "Relatório para o provedor…",
+  "ui.provider.tip": "Salva uma lista dos momentos em que sua linha estava lenta embora o roteador estivesse rápido (últimos 30 dias).",
+  "provider.title": "Relatório de conexão",
+  "provider.intro": "Medido uma vez por segundo pelo WhyLag neste PC. Estão listados os momentos em que o atraso até a internet aumentou claramente enquanto o roteador continuava respondendo rápido, portanto a causa está além do roteador. Momentos com causa em casa (Wi-Fi, envio próprio) não estão listados.",
+  "provider.period": "Período: {0} – {1}",
+  "provider.none": "Nenhum momento assim foi registrado neste período.",
+  "provider.total": "Momentos registrados: {0}, em {1} dia(s).",
+  "provider.col.day": "Dia",
+  "provider.col.count": "Momentos",
+  "provider.details": "Detalhes",
+  "err.hotkey.busy": "O atalho {0} já é usado por outro programa. Escolha outro nas configurações.",
+  "update.noinstaller": "Esta versão não contém instalador ou checksum."
 }

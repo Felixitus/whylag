@@ -12,9 +12,9 @@ jobs:
   build-test:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: 10.0.x
 
@@ -26,6 +26,16 @@ jobs:
 
       - name: Test
         run: dotnet test WhyLag.slnx --configuration Release --no-build --logger "trx;LogFileName=results.trx"
+
+      - name: Render every view
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "views"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $app = Start-Process src/WhyLag.App/bin/Release/net10.0-windows/WhyLag.exe -ArgumentList "--screenshots", $out -PassThru
+          if (-not $app.WaitForExit(120000)) { $app.Kill(); throw "Screenshot mode did not finish" }
+          if (Test-Path "$out/error.txt") { Get-Content "$out/error.txt"; throw "A view failed to render" }
+          if ((Get-ChildItem $out -Filter *.png).Count -lt 10) { throw "Views are missing" }
 
       - name: Check formatting
         run: dotnet format WhyLag.slnx --verify-no-changes --no-restore
@@ -41,7 +51,7 @@ jobs:
         run: ./build/build-installer.ps1
         shell: pwsh
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: whylag-packages
           path: |

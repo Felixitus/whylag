@@ -112,7 +112,7 @@ public partial class SettingsWindow : Window
                 MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
         try
         {
-            using var process = Process.Start(new ProcessStartInfo("powershell.exe", $"-NoProfile -Command \"{command}\"")
+            using var process = Process.Start(new ProcessStartInfo("powershell.exe", "-NoProfile -EncodedCommand " + Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(command)))
             {
                 UseShellExecute = true,
                 Verb = "runas",

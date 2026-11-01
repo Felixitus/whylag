@@ -32,7 +32,7 @@ internal static class Theme
     public static void Apply(string theme)
     {
         IsDark = theme switch { "Light" => false, "Dark" => true, _ => SystemUsesDark() };
-        var t = IsDark ? Dark : Light;
+        var t = SystemParameters.HighContrast ? HighContrast() : IsDark ? Dark : Light;
         var resources = Application.Current.Resources;
 
         void Brush(string value, params string[] keys)
@@ -60,6 +60,17 @@ internal static class Theme
         Brush(t.CautionSoft, "SystemFillColorCautionBackgroundBrush");
         Brush(t.Critical, "SystemFillColorCriticalBrush");
         resources["SystemAccentColor"] = (Color)ColorConverter.ConvertFromString(t.Accent);
+    }
+
+    /// <summary>The colors the user chose for high contrast; a custom palette would ignore that choice.</summary>
+    private static Tokens HighContrast()
+    {
+        static string Hex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+        var window = Hex(SystemColors.WindowColor);
+        var text = Hex(SystemColors.WindowTextColor);
+        var highlight = Hex(SystemColors.HighlightColor);
+        var onHighlight = Hex(SystemColors.HighlightTextColor);
+        return new Tokens(window, window, window, highlight, highlight, text, text, text, text, text, highlight, highlight, onHighlight, text, text, window, text);
     }
 
     private static bool SystemUsesDark()

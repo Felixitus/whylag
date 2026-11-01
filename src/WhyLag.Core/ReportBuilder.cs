@@ -92,9 +92,13 @@ public static class ReportBuilder
         _ => T("trigger.manual"),
     };
 
-    /// <summary>Removes the user and machine name, which can appear in event log messages.</summary>
+    /// <summary>
+    /// Removes the user and machine name, which can appear in event log messages, and the account in any profile path
+    /// (also of other users, and for short names that are not replaced on their own).
+    /// </summary>
     public static string Anonymize(string text)
     {
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)\b([a-z]:\\+users\\+)[^\\/:*?""<>|\r\n]+", "$1<redacted>");
         foreach (var secret in new[] { Environment.UserName, Environment.MachineName })
         {
             if (secret.Length >= 3) text = text.Replace(secret, "<redacted>", StringComparison.OrdinalIgnoreCase);

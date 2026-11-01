@@ -21,29 +21,41 @@ public sealed class RouterSource : IMetricSource
         Timeout = TimeSpan.FromSeconds(3),
         MaxResponseContentBufferSize = 256 * 1024,
     };
-    private readonly List<string> _warnings = new();
     private volatile Sample? _latest;
-    private Uri? _control;
+    private volatile bool _notFound;
 
     private sealed record Sample(DateTime At, double DownMbps, double UpMbps);
 
     public string Name => WhyLag.Core.Localization.Loc.T("source.router");
 
-    public IReadOnlyList<string> Warnings => _warnings;
+    /// <summary>Discovery takes seconds and the network may not be up yet, so it runs in the background and repeats.</summary>
+    public void Start() => _ = Task.Run(() => RunAsync(_cts.Token));
 
-    public void Start()
+    private async Task RunAsync(CancellationToken ct)
     {
-        _control = DiscoverAsync(_cts.Token).GetAwaiter().GetResult();
-        if (_control is null)
+        try
         {
-            _warnings.Add(WhyLag.Core.Localization.Loc.T("warn.router"));
-            return;
+            while (!ct.IsCancellationRequested)
+            {
+                if (await DiscoverAsync(ct).ConfigureAwait(false) is { } control)
+                {
+                    _notFound = false;
+                    await PollAsync(control, ct).ConfigureAwait(false);
+                    return;
+                }
+                _notFound = true;
+                await Task.Delay(TimeSpan.FromMinutes(2), ct).ConfigureAwait(false);
+            }
         }
-        _ = Task.Run(() => PollAsync(_control, _cts.Token));
+        catch (OperationCanceledException)
+        {
+            // WhyLag is closing.
+        }
     }
 
     public void Collect(Tick tick)
     {
+        if (_notFound) throw new InvalidOperationException(WhyLag.Core.Localization.Loc.T("warn.router"));
         if (_latest is not { } s || DateTime.UtcNow - s.At > TimeSpan.FromSeconds(5)) return;
         tick.Set(MetricKeys.RouterDownMbps, s.DownMbps);
         tick.Set(MetricKeys.RouterUpMbps, s.UpMbps);

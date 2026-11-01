@@ -49,8 +49,25 @@ public sealed class IncidentStore(string? directory = null)
             .ToList();
     }
 
-    /// <summary>All readable incidents, newest first.</summary>
+    /// <summary>All readable incidents, newest first, with everything that was recorded.</summary>
     public List<Incident> LoadAll() => ListIds().Select(Load).OfType<Incident>().ToList();
+
+    /// <summary>
+    /// All readable incidents, newest first, without the recorded data: findings, note and the foreground program of
+    /// each second only. Lists and statistics need no more, and this skips most of the work and memory.
+    /// </summary>
+    public List<Incident> LoadSummaries() => ListIds().AsParallel().AsOrdered().Select(id =>
+    {
+        try
+        {
+            using var file = File.OpenRead(PathFor(id));
+            return JsonSerializer.Deserialize<Incident>(file, Json.Summary);
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }).OfType<Incident>().ToList();
 
     public void Delete(string id)
     {
@@ -59,8 +76,19 @@ public sealed class IncidentStore(string? directory = null)
         if (File.Exists(path)) File.Delete(path);
     }
 
+    /// <summary>
+    /// Keeps at most <paramref name="keep"/> incidents. Automatic ones go first, oldest first: on a line that spikes all
+    /// day they would otherwise push out the moments the user reported personally within days.
+    /// </summary>
     public void Prune(int keep)
     {
-        foreach (var id in ListIds().Skip(Math.Max(keep, 1))) Delete(id);
+        var ids = ListIds();
+        var surplus = ids.Count - Math.Max(keep, 1);
+        if (surplus <= 0) return;
+        var byAge = ids.AsEnumerable().Reverse().ToList();
+        var order = byAge.Where(IsAutomatic).Concat(byAge.Where(id => !IsAutomatic(id)));
+        foreach (var id in order.Take(surplus).ToList()) Delete(id);
     }
+
+    private static bool IsAutomatic(string id) => id.EndsWith("-automatic", StringComparison.Ordinal);
 }

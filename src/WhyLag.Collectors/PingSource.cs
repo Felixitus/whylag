@@ -18,6 +18,7 @@ public sealed class PingSource(string? target) : IMetricSource
     private IPAddress? _gatewayAddress;
     private IPAddress? _targetAddress;
     private DateTime _gatewayResolvedAt = DateTime.MinValue;
+    private DateTime _targetResolvedAt = DateTime.MinValue;
 
     public string Name => WhyLag.Core.Localization.Loc.T("source.ping");
 
@@ -25,12 +26,7 @@ public sealed class PingSource(string? target) : IMetricSource
 
     public void Start()
     {
-        if (!string.IsNullOrWhiteSpace(target))
-        {
-            _targetAddress = IPAddress.TryParse(target, out var ip)
-                ? ip
-                : Dns.GetHostAddresses(target).FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork);
-        }
+        if (IPAddress.TryParse(target, out var ip)) _targetAddress = ip;
         _ = Task.Run(() => LoopAsync(_cts.Token));
     }
 
@@ -39,11 +35,13 @@ public sealed class PingSource(string? target) : IMetricSource
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         do
         {
+            if (ct.IsCancellationRequested) return;
             if (DateTime.UtcNow - _gatewayResolvedAt > TimeSpan.FromSeconds(30))
             {
                 _gatewayAddress = FindGateway();
                 _gatewayResolvedAt = DateTime.UtcNow;
             }
+            await ResolveTargetAsync(ct).ConfigureAwait(false);
             var gw = _gatewayAddress is { } g ? SendAsync(g) : Task.FromResult<PingResult?>(null);
             var tg = _targetAddress is { } t ? SendAsync(t) : Task.FromResult<PingResult?>(null);
             await Task.WhenAll(gw, tg).ConfigureAwait(false);
@@ -51,6 +49,27 @@ public sealed class PingSource(string? target) : IMetricSource
             _target = tg.Result;
         }
         while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Host names are looked up here and not at start: at Windows sign-in the network is often not up yet, and DNS
+    /// must not block the caller. The lookup repeats every few minutes so a moved server is followed.
+    /// </summary>
+    private async Task ResolveTargetAsync(CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(target) || IPAddress.TryParse(target, out _)) return;
+        var age = DateTime.UtcNow - _targetResolvedAt;
+        if (age < (_targetAddress is null ? TimeSpan.FromSeconds(15) : TimeSpan.FromMinutes(5))) return;
+        _targetResolvedAt = DateTime.UtcNow;
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(target, ct).ConfigureAwait(false);
+            _targetAddress = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? _targetAddress;
+        }
+        catch (SocketException)
+        {
+            // Offline: keep the last address and try again.
+        }
     }
 
     private static async Task<PingResult?> SendAsync(IPAddress address)

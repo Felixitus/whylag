@@ -8,6 +8,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WhyLag.AI.Tests/WhyLag.AI.Tests.csproj" />
+    <Project Path="tests/WhyLag.Collectors.Tests/WhyLag.Collectors.Tests.csproj" />
     <Project Path="tests/WhyLag.Core.Tests/WhyLag.Core.Tests.csproj" />
   </Folder>
 </Solution>

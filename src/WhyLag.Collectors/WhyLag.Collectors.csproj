@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -7,11 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="WhyLag.Collectors.Tests" />
     <ProjectReference Include="..\WhyLag.Core\WhyLag.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.13" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.14" />
     <PackageReference Include="System.Management" Version="10.0.14" />
   </ItemGroup>
 

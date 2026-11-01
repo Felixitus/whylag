@@ -20,20 +20,27 @@ public static class PresentMonLocator
 
     public static string UserToolsDir => Path.Combine(AppPaths.Root, "tools");
 
-    /// <summary>Bundled copy next to WhyLag (installer, portable ZIP) or a copy downloaded by the user.</summary>
-    public static string? Find()
+    /// <summary>
+    /// Bundled copy next to WhyLag (installer, portable ZIP) or a copy downloaded by the user. Only the known file with
+    /// the known checksum is accepted: the user's tools folder is writable by every program the user runs, and a file
+    /// placed there must not be started by WhyLag.
+    /// </summary>
+    public static string? Find() =>
+        new[] { Path.Combine(AppContext.BaseDirectory, "tools"), UserToolsDir }
+            .Select(dir => Path.Combine(dir, FileName))
+            .FirstOrDefault(IsGenuine);
+
+    internal static bool IsGenuine(string path)
     {
-        var candidates = new[]
+        try
         {
-            Path.Combine(AppContext.BaseDirectory, "tools"),
-            UserToolsDir,
-        };
-        foreach (var dir in candidates.Where(Directory.Exists))
-        {
-            var exe = Directory.GetFiles(dir, "PresentMon-*-x64.exe").OrderDescending().FirstOrDefault();
-            if (exe is not null) return exe;
+            using var file = File.OpenRead(path);
+            return Convert.ToHexStringLower(SHA256.HashData(file)) == Sha256;
         }
-        return null;
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     /// <summary>True when ETW sessions can be started: elevated, or member of "Performance Log Users".</summary>
@@ -50,7 +57,11 @@ public static class PresentMonLocator
     /// agreed; it takes effect after signing out and in again.
     /// </summary>
     public static string GrantPermissionCommand() =>
-        $"Add-LocalGroupMember -SID '{PerformanceLogUsersSid}' -Member '{WindowsIdentity.GetCurrent().Name}'";
+        GrantPermissionCommand(WindowsIdentity.GetCurrent().Name);
+
+    /// <summary>The account name goes into a single-quoted PowerShell string, where a quote is doubled.</summary>
+    internal static string GrantPermissionCommand(string account) =>
+        $"Add-LocalGroupMember -SID '{PerformanceLogUsersSid}' -Member '{account.Replace("'", "''")}'";
 
     public static async Task<string> DownloadAsync(HttpClient http, IProgress<double>? progress = null, CancellationToken ct = default)
     {

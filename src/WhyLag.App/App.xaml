@@ -1,4 +1,4 @@
-﻿<Application x:Class="WhyLag.App.App"
+<Application x:Class="WhyLag.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:WhyLag.App"
@@ -18,7 +18,7 @@
                 <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}"/>
                 <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="CornerRadius" Value="6"/>
+                <Setter Property="CornerRadius" Value="4"/>
                 <Setter Property="Padding" Value="18,14"/>
                 <Setter Property="Margin" Value="0,0,0,12"/>
             </Style>
@@ -103,7 +103,7 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Box" CornerRadius="6" Background="{TemplateBinding Background}"
+                            <Border x:Name="Box" CornerRadius="4" Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                                     Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                                 <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -135,7 +135,7 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Box" CornerRadius="6" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <Border x:Name="Box" CornerRadius="4" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                                 <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                                   VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                             </Border>
@@ -171,7 +171,7 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="RadioButton">
                             <Grid>
-                                <Border x:Name="Box" CornerRadius="6" Background="Transparent" Padding="10,7">
+                                <Border x:Name="Box" CornerRadius="4" Background="Transparent" Padding="10,7">
                                     <ContentPresenter/>
                                 </Border>
                                 <Border x:Name="Bar" Width="3" Height="16" CornerRadius="1.5" HorizontalAlignment="Left" Margin="0"

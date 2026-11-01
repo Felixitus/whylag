@@ -47,6 +47,7 @@ public partial class MainWindow : Window
     private readonly System.ComponentModel.ICollectionView _view;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly List<LiveTile> _tiles;
+    private DateTime _listDay = DateTime.Today;
     private Incident? _current;
     private CancellationTokenSource? _explainCts;
 
@@ -91,7 +92,11 @@ public partial class MainWindow : Window
         foreach (var tile in _tiles) LiveTiles.Children.Add(tile);
 
         Host.IncidentAdded += OnIncidentAdded;
-        Closing += (_, _) => SavePlacement();
+        Closing += (_, _) =>
+        {
+            if (_current is not null) NoteBox_LostFocus(this, new RoutedEventArgs()); // the box may still have the focus
+            SavePlacement();
+        };
         Closed += (_, _) =>
         {
             Host.IncidentAdded -= OnIncidentAdded;
@@ -147,7 +152,8 @@ public partial class MainWindow : Window
 
     public void RefreshStatus()
     {
-        if (!Alive) return;
+        if (!Alive || WindowState == WindowState.Minimized) return;
+        if (_listDay != DateTime.Today) RelabelDays();
         var s = Host.Settings;
         HotkeyHint.Text = Host.HotkeyError ?? T("ui.hotkeyhint", s.Hotkey);
         HowTo.Text = T("ui.howto", s.Hotkey) + " " + (s.AutoDetect ? T("ui.howto.auto") : T("ui.howto.autooff"));
@@ -167,8 +173,8 @@ public partial class MainWindow : Window
         {
             var recent = recorder.RecentTicks(60);
             foreach (var tile in _tiles) tile.Visibility = tile.Update(recent) ? Visibility.Visible : Visibility.Collapsed;
-            SourceWarnings.ItemsSource = recorder.Status.Where(x => x.State != SourceState.Running)
-                .Select(x => $"{x.Name}: {x.Message}").ToList();
+            var warnings = recorder.Status.Where(x => x.State != SourceState.Running).Select(x => $"{x.Name}: {x.Message}").ToList();
+            if (SourceWarnings.ItemsSource is not List<string> shown || !shown.SequenceEqual(warnings)) SourceWarnings.ItemsSource = warnings;
         }
     }
 
@@ -180,18 +186,38 @@ public partial class MainWindow : Window
         foreach (var tile in _tiles) tile.Visibility = tile.Update(ticks.TakeLast(60).ToList()) ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void LoadList()
+    /// <summary>Reads the list in the background: dozens of files must not hold up the window.</summary>
+    private async void LoadList()
     {
         var selected = (IncidentList.SelectedItem as IncidentListItem)?.Id;
+        NoIncidents.Text = T("ui.loading");
+        NoIncidents.Visibility = Visibility.Visible;
+        var incidents = await Task.Run(Host.Store.LoadSummaries);
+        if (App.Instance is not { IsExiting: false }) return;
         _items.Clear();
-        foreach (var incident in Host.Store.LoadAll()) _items.Add(ToItem(incident));
+        foreach (var incident in incidents) _items.Add(ToItem(incident));
+        _listDay = DateTime.Today;
         UpdateCount();
+        RefreshStatus();
         if (_items.FirstOrDefault(i => i.Id == selected) is { } item) IncidentList.SelectedItem = item;
+    }
+
+    /// <summary>After midnight "today" has become "yesterday".</summary>
+    private void RelabelDays()
+    {
+        _listDay = DateTime.Today;
+        var selected = IncidentList.SelectedItem as IncidentListItem;
+        var all = _items.Select(i => i with { Day = DayLabel(i.Local) }).ToList();
+        _items.Clear();
+        foreach (var i in all) _items.Add(i);
+        if (selected is not null) IncidentList.SelectedItem = _items.FirstOrDefault(i => i.Id == selected.Id);
+        RefreshToday();
     }
 
     private void UpdateCount()
     {
         IncidentCount.Text = _items.Count.ToString(Culture);
+        NoIncidents.Text = T("ui.noincidents");
         NoIncidents.Visibility = _items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         TableSummary.Text = T("ui.table.summary", _view.Cast<object>().Count(), _items.Count);
         RefreshToday();
@@ -308,20 +334,36 @@ public partial class MainWindow : Window
         if (IncidentList.SelectedItem is null && !_view.IsEmpty) IncidentList.SelectedIndex = 0;
     }
 
-    private void Patterns_Click(object sender, RoutedEventArgs e)
+    private async void Patterns_Click(object sender, RoutedEventArgs e)
     {
         ShowView(PatternsView);
+        NoPatterns.Text = T("ui.loading");
+        NoPatterns.Visibility = Visibility.Visible;
+        var incidents = await Task.Run(Host.Store.LoadSummaries);
+        var found = await Task.Run(() => PatternAnalyzer.Find(incidents));
+        if (!Alive) return;
 
         var days = Enumerable.Range(0, 7).Select(d => Culture.DateTimeFormat.GetShortestDayName((DayOfWeek)((d + 1) % 7))).ToArray();
         var hours = Enumerable.Range(0, 24).Select(h => h % 6 == 0 ? h.ToString(Culture) : "").ToArray();
-        var patterns = PatternAnalyzer.Find(Host.Store.LoadAll()).Select(p => new PatternView(
+        var patterns = found.Select(p => new PatternView(
             p.Title, p.Category, T("ui.patterns.count", p.Count),
             T("ui.patterns.range", p.First.ToString("d", Culture), p.Last.ToString("d", Culture)),
             p.When.Length > 0 ? p.When : T("ui.patterns.notime"),
             p.ByHour, p.ByWeekday, hours, days, p.IncidentIds[^1])).ToList();
         PatternList.ItemsSource = patterns;
+        NoPatterns.Text = T("ui.patterns.none");
         NoPatterns.Visibility = patterns.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        _ = LoadChangesAsync();
+        PatternCard.Visibility = patterns.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        _ = LoadChangesAsync(incidents);
+    }
+
+    /// <summary>Saves the report for the internet provider (see <see cref="ProviderReport"/>).</summary>
+    private async void ProviderReport_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog { FileName = "whylag-connection-report", Filter = "Markdown|*.md|Text|*.txt" };
+        if (dialog.ShowDialog(this) != true) return;
+        var text = await Task.Run(() => ProviderReport.Markdown(Host.Store.LoadSummaries(), DateTimeOffset.Now));
+        await File.WriteAllTextAsync(dialog.FileName, text);
     }
 
     private void TableFilter_Changed(object sender, EventArgs e)
@@ -349,8 +391,21 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (System.Windows.Input.Keyboard.FocusedElement is TextBox) return;
         var ctrl = System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control);
+        if (ctrl && e.Key is >= System.Windows.Input.Key.D1 and <= System.Windows.Input.Key.D4)
+        {
+            new[] { LiveButton, TableButton, PatternsButton, SessionsButton }[e.Key - System.Windows.Input.Key.D1].IsChecked = true;
+            e.Handled = true;
+            return;
+        }
+        if (ctrl && e.Key == System.Windows.Input.Key.F)
+        {
+            TableButton.IsChecked = true;
+            TableSearch.Focus();
+            e.Handled = true;
+            return;
+        }
+        if (System.Windows.Input.Keyboard.FocusedElement is TextBox) return;
         switch (e.Key)
         {
             case System.Windows.Input.Key.F5:
@@ -369,11 +424,10 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Reads driver/Windows updates from the event log (can take a moment) and compares incident rates.</summary>
-    private async Task LoadChangesAsync()
+    private async Task LoadChangesAsync(List<Incident> incidents)
     {
         ChangesStatus.Text = T("ui.changes.loading");
         ChangeList.ItemsSource = null;
-        var incidents = Host.Store.LoadAll();
         var impacts = await Task.Run(() => ChangeAnalyzer.Compare(Collectors.SystemChangeReader.Read(TimeSpan.FromDays(90)), incidents, DateTimeOffset.Now));
         if (!Alive) return;
         ChangeList.ItemsSource = impacts.Select(i => new ChangeView(
@@ -395,6 +449,7 @@ public partial class MainWindow : Window
         var running = Host.Recorder?.CurrentSessionApp;
         SessionStatus.Text = running is not null ? T("session.running", running) : sessions.Count == 0 ? T("session.none") : "";
         SessionStatus.Visibility = SessionStatus.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        SessionCard.Visibility = sessions.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void Link_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
@@ -599,7 +654,7 @@ public partial class MainWindow : Window
             MessageBox.Show(this, T("ui.capture.tooearly"), "WhyLag");
             return;
         }
-        Task.Run(() => recorder.Capture(TriggerKind.Manual, T("trigger.button")));
+        Host.CaptureNow(TriggerKind.Manual, T("trigger.button"));
     }
 
     private void Demo_Click(object sender, RoutedEventArgs e) => Host.AddDemoIncident();

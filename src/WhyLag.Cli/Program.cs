@@ -106,7 +106,11 @@ async Task<bool> ExplainIncident(Incident incident, string? model)
 {
     if (model is not null) settings.Ai.Model = model;
     var client = OllamaClient.Create(settings.Ai.Endpoint, TimeSpan.FromSeconds(settings.Ai.TimeoutSeconds));
-    if (!client.IsLocal) Console.WriteLine($"Note: {client.Endpoint} is not on this PC – the findings will be sent there.");
+    if (!client.IsLocal && !args.Contains("--allow-remote"))
+    {
+        Console.WriteLine($"{client.Endpoint} is not on this PC, so the findings would be sent there. Add --allow-remote to do that.");
+        return false;
+    }
     Console.WriteLine("Asking the local AI ...");
     var result = await new IncidentExplainer(client, settings.Ai).ExplainAsync(incident);
     Console.WriteLine($"AI: {result.Status} – {result.Message}");
@@ -226,12 +230,19 @@ int Router()
 {
     using var router = new RouterSource();
     router.Start();
-    if (router.Warnings.Count > 0) { Console.WriteLine(router.Warnings[0]); return 1; }
     for (var i = 0; i < 4; i++)
     {
         Thread.Sleep(2500);
         var t = new Tick { Timestamp = DateTimeOffset.Now };
-        router.Collect(t);
+        try
+        {
+            router.Collect(t);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Console.WriteLine(ex.Message);
+            return 1;
+        }
         Console.WriteLine($"router: down {t.Get(MetricKeys.RouterDownMbps):0.00} Mbit/s, up {t.Get(MetricKeys.RouterUpMbps):0.00} Mbit/s");
     }
     return 0;
@@ -242,7 +253,7 @@ int Changes()
     var changes = SystemChangeReader.Read(TimeSpan.FromDays(90));
     Console.WriteLine($"{changes.Count} driver/Windows update(s) in the last 90 days:");
     foreach (var c in changes.OrderByDescending(c => c.At).Take(15)) Console.WriteLine($"  {c.At.ToLocalTime():g}  {c.Kind,-13} {c.Description}");
-    var impacts = ChangeAnalyzer.Compare(changes, new IncidentStore().LoadAll(), DateTimeOffset.Now);
+    var impacts = ChangeAnalyzer.Compare(changes, new IncidentStore().LoadSummaries(), DateTimeOffset.Now);
     Console.WriteLine(impacts.Count == 0 ? "No change with clearly more incidents afterwards." : "Changes followed by more incidents:");
     foreach (var i in impacts) Console.WriteLine($"  {i.Change.At.ToLocalTime():d} {i.Change.Description}: {i.Before} before ({i.DaysBefore:0} d), {i.After} after ({i.DaysAfter:0} d)");
     return 0;

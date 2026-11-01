@@ -2,6 +2,44 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+Result of a full review, see [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
+
+### Added
+
+- *Report for provider* on the patterns page: moments in which the line was slow while the router was fast.
+- Keyboard: `Ctrl+1…4` for the pages, `Ctrl+F` for the search.
+- Windows high-contrast colors are respected.
+
+### Changed
+
+- Network spikes start no automatic incident while nobody is at the PC and no game is in front.
+- When the history is full, automatic incidents are removed first, so personal reports stay.
+- Live values, sessions, findings and patterns are compact tables instead of separate cards.
+- The incident list and patterns load in the background and about 13 times faster.
+- Temperature tools are looked for every 30 seconds while none is running.
+- Browsers, chat and video programs no longer count as gaming sessions.
+
+### Fixed
+
+- An error in the recording loop no longer ends the recording; automatic captures no longer run on that loop.
+- Waking from sleep is no longer treated as a frozen PC.
+- A ping target given as host name works when the network comes up after WhyLag started.
+- Router discovery no longer freezes the window and retries.
+- Failed sources are tried again every minute.
+- Memory no longer grows while recording is paused with PresentMon running.
+- A note is saved when the window closes; broken session files no longer break the page; day names update at midnight.
+- Errors outside the window are logged, the log rotates, hotkey and update errors are translated.
+
+### Security
+
+- PresentMon only starts when its name and SHA-256 match the known release.
+- The elevated permission command escapes the account name and is passed encoded.
+- GitHub Actions pinned to commit hashes, tag names no longer expanded in scripts, Dependabot enabled.
+- HTML exports have a content security policy; anonymisation covers profile paths.
+- `whylag-cli explain` needs `--allow-remote` for a non-local Ollama; update downloads have a size limit.
+
 ## [0.1.3] - 2026-10-31
 
 ### Changed

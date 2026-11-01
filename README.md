@@ -27,6 +27,7 @@ minutes in memory, so the moment can still be analysed afterwards.
   filling your line (router traffic via UPnP, optional).
 - **Overlay** with fps, frame time, load, temperatures and ping – a normal topmost window, nothing is injected into games.
 - **Recurring patterns**: *"6× seen · usually between 21:00 and 23:00 · mostly on Tuesday"*.
+- **Report for your provider**: a dated list of moments in which the line was slow while your router was fast.
 - **Incident list** by day with search, category filter and bulk delete; each report lists the recorded Windows events
   and keeps your own note.
 - **Driver latency (optional)**: a small elevated helper names drivers that block the CPU (audio crackles, input lag).
@@ -67,7 +68,8 @@ automatically when WhyLag starts (*Settings → General*). The portable version 
    hour from the tray menu. A line that spikes all day? Turn off automatic detection for network spikes in
    *Settings → Detection* – ping and packet loss are still recorded and shown in every report.
 
-Shortcuts in the window: `F5` refresh, `Del` delete the open incident, `Ctrl+C` copy its report.
+Shortcuts in the window: `Ctrl+1…4` pages, `Ctrl+F` search incidents, `F5` refresh, `Del` delete, `Ctrl+C` copy the
+report.
 
 ### Optional features
 

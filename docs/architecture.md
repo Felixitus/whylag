@@ -24,6 +24,8 @@
 - **Measurements decide, the model explains.** The AI may only rephrase and rank findings; every statement cites evidence.
 - **Never fatal.** Failing sources are marked degraded; a throwing rule is skipped.
 - **No admin rights by default.** Elevated parts are optional, explicit and isolated in a helper process.
+- **The recording never stops.** Every second is guarded, failed sources are retried, disk work is off the loop.
+- **Lists read summaries.** `IncidentStore.LoadSummaries` skips recorded data; only the open report loads everything.
 - **Direct APIs before performance counters** – counters are localized by name and often damaged.
 - **All user-facing text is translated** via `Loc.T("key")` and `src/WhyLag.Core/Localization/<lang>.json`.
 

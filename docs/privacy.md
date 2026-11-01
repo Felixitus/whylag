@@ -5,6 +5,7 @@
 - System metrics: CPU, memory, disk, GPU, network throughput, TCP retransmissions, DPC/interrupt time
 - Top processes by CPU, I/O, GPU and memory (**names only**)
 - Name of the program in front, its frame times (PresentMon, input tracking off)
+- Seconds since the last keyboard or mouse input (only this number), to ignore network spikes while nobody is there
 - Ping times to router and one internet address; Wi-Fi signal, link speed, "access point changed"
 - Windows events: warnings/errors from System and Application, Wi-Fi and Windows Update events
 - Optional helper: longest DPC/ISR time per driver file name
@@ -19,7 +20,8 @@ The update comparison reads driver and Windows Update events from the local even
 Wi-Fi network names or access-point addresses (compared in memory only).
 
 When an incident is captured, the last three minutes are saved to `%LOCALAPPDATA%\WhyLag\incidents\<id>.json`.
-Copied and exported reports remove user and computer names.
+Copied and exported reports remove user and computer names and the account in profile paths. The report for your
+provider contains only dates, times and ping measurements.
 
 ## Connections
 
@@ -45,6 +47,7 @@ refuses Ollama cloud models, validates every answer and never triggers actions.
 
 WhyLag runs as a normal user. Elevated parts are optional and explicit:
 
+- **PresentMon** is only started when its checksum matches the known release.
 - **Frame times** need the *Performance Log Users* group (SID `S-1-5-32-559`); WhyLag adds you only after you click
   *Allow* and approve the admin prompt.
 - **Driver latency helper** runs elevated only while WhyLag runs. It reads the kernel trace for DPC/ISR timings, sends

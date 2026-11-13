@@ -108,6 +108,8 @@ public sealed class Finding
     public double Confidence { get; init; }
     public List<Evidence> Evidence { get; init; } = new();
     public List<string> Checks { get; init; } = new();
+    /// <summary>The user's answer: true = this was the cause, false = it was not, null = no answer.</summary>
+    public bool? Confirmed { get; set; }
 }
 
 public sealed class MachineInfo

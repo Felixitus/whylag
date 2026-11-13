@@ -155,6 +155,12 @@ internal static class BugReport
             .AppendLine()
             .AppendLine("Sources:");
         foreach (var s in recorder?.Status ?? []) info.AppendLine($"  {s.Name}: {s.State} {s.Message}");
+
+        // What the user answered about findings, per rule: the most useful input for tuning rules.
+        var answers = store.LoadSummaries().SelectMany(i => i.Findings).Where(f => f.Confirmed is not null).GroupBy(f => f.RuleId).ToList();
+        if (answers.Count > 0) info.AppendLine().AppendLine("Feedback on findings (rule: was the cause / was not):");
+        foreach (var rule in answers.OrderBy(g => g.Key, StringComparer.Ordinal))
+            info.AppendLine($"  {rule.Key}: {rule.Count(f => f.Confirmed == true)} / {rule.Count(f => f.Confirmed == false)}");
         Add("system.txt", info.ToString());
 
         // Settings without the Ollama address, which may contain a host name.

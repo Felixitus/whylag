@@ -11,7 +11,14 @@ Second security review and new features, see [PROJECT_AUDIT.md](PROJECT_AUDIT.md
 - *Keep* an incident with the pin in its report: kept incidents are never deleted to make room for new ones.
 - Sessions are compared with your usual for the same game: *worse than usual*, *as usual* or *better than usual*, with
   the usual fps, 1 % low and hitches per hour from up to ten earlier sessions.
-- The overview shows the incidents of the last seven days as one bar per day.
+- The overview shows the incidents of the last seven days as one bar per day, and how that compares with the week
+  before.
+- *This was the cause* / *This was not the cause* on every finding. What you rule out no longer counts as the cause
+  in the list and in recurring patterns; bug reports contain the answers per rule.
+- Your own markers on the patterns page ("graphics driver updated"): WhyLag shows the lag reports in the week before
+  and after.
+- The copy button offers the full report, a short summary for chats and forums, or the top of the report as an image;
+  the export also saves that image as PNG.
 
 ### Changed
 

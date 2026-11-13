@@ -375,3 +375,114 @@ public class SessionBaselineTests
     [Fact]
     public void More_fps_with_many_more_hitches_is_not_better() => Assert.Equal(SessionVerdict.Worse, Verdict(Session(5, 240, 120, 12)));
 }
+
+public class FeedbackTests
+{
+    private static Incident Two(bool? first = null, bool? second = null) => new()
+    {
+        Id = "20260101-100000-hotkey",
+        TriggeredAt = TestData.Start,
+        Findings =
+        [
+            new Finding { Id = "F1", RuleId = "a", Title = "first", Confidence = 0.9, Confirmed = first, Evidence = [new Evidence("E1", TestData.Start, @"C:\Users\Jo\x used 97 %")] },
+            new Finding { Id = "F2", RuleId = "b", Title = "second", Confidence = 0.6, Confirmed = second },
+        ],
+    };
+
+    [Fact]
+    public void Without_an_answer_the_first_finding_is_the_cause() => Assert.Equal("first", ReportBuilder.Top(Two())!.Title);
+
+    [Fact]
+    public void A_finding_that_was_ruled_out_is_not_the_cause() => Assert.Equal("second", ReportBuilder.Top(Two(first: false))!.Title);
+
+    [Fact]
+    public void A_confirmed_finding_comes_first() => Assert.Equal("second", ReportBuilder.Top(Two(second: true))!.Title);
+
+    [Fact]
+    public void Nothing_is_left_when_everything_was_ruled_out() => Assert.Null(ReportBuilder.Top(Two(false, false)));
+
+    [Fact]
+    public void The_answer_is_saved_with_the_incident_and_read_in_summaries()
+    {
+        var store = new IncidentStore(Directory.CreateTempSubdirectory("whylag-test").FullName);
+        store.Save(Two(first: false));
+        Assert.False(store.LoadSummaries()[0].Findings[0].Confirmed);
+        Assert.Null(store.Load("20260101-100000-hotkey")!.Findings[1].Confirmed);
+    }
+
+    [Fact]
+    public void Ruled_out_findings_form_no_pattern()
+    {
+        Incident At(int day, bool? confirmed) => new()
+        {
+            Id = $"2026010{day}-100000-hotkey",
+            TriggeredAt = TestData.Start.AddDays(day),
+            Findings = [new Finding { Id = "F1", RuleId = "a", Title = "t", Confidence = 0.9, Confirmed = confirmed }],
+        };
+        Assert.Single(PatternAnalyzer.Find([At(1, null), At(2, null), At(3, true)]));
+        Assert.Empty(PatternAnalyzer.Find([At(1, null), At(2, null), At(3, false)]));
+    }
+
+    [Fact]
+    public void Short_summary_names_the_cause_and_hides_the_account()
+    {
+        var text = ReportBuilder.Short(Two());
+        Assert.Contains("first", text);
+        Assert.Contains("second", text);
+        Assert.DoesNotContain(@"\Jo\", text);
+        Assert.True(text.Split('\n').Length <= 6);
+        Assert.DoesNotContain("first", ReportBuilder.Short(Two(first: false)).Split('\n')[1]);
+    }
+}
+
+public class MarkerTests
+{
+    private static MarkerStore Store() => new(Path.Combine(Directory.CreateTempSubdirectory("whylag-test").FullName, "markers.json"));
+
+    [Fact]
+    public void Markers_are_saved_newest_first_and_can_be_removed()
+    {
+        var store = Store();
+        var a = store.Add("old driver", TestData.Start)!;
+        store.Add("new router", TestData.Start.AddDays(2));
+        Assert.Equal(["new router", "old driver"], store.Load().Select(m => m.Text));
+        store.Remove(a.Id);
+        Assert.Equal("new router", Assert.Single(store.Load()).Text);
+    }
+
+    [Fact]
+    public void Text_is_cleaned_and_limited()
+    {
+        var store = Store();
+        Assert.Null(store.Add("  \r\n ", TestData.Start));
+        Assert.Equal("a b", store.Add(" a\r\n b ", TestData.Start)!.Text.Replace("  ", " "));
+        Assert.Equal(MarkerStore.MaxTextLength, store.Add(new string('x', 500), TestData.Start)!.Text.Length);
+    }
+
+    [Fact]
+    public void A_broken_file_gives_no_markers_and_can_be_written_again()
+    {
+        var store = Store();
+        File.WriteAllText(store.File, "{ broken");
+        Assert.Empty(store.Load());
+        Assert.NotNull(store.Add("x", TestData.Start));
+        Assert.Single(store.Load());
+    }
+
+    [Fact]
+    public void A_marker_is_always_reported_with_the_counts_around_it()
+    {
+        var now = TestData.Start.AddDays(20);
+        var at = now.AddDays(-3);
+        var incidents = new[] { -9.0, -8, -5, -4, -1 }.Select((d, n) => new Incident { Id = $"i{n}", TriggeredAt = now.AddDays(d) }).ToList();
+
+        var impact = Assert.Single(ChangeAnalyzer.Compare([new Marker("m", at, "new driver").AsChange()], incidents, now));
+
+        Assert.Equal(("m", 4, 1), (impact.Change.MarkerId, impact.Before, impact.After));
+        Assert.Equal(3, impact.DaysAfter, 3);
+    }
+
+    [Fact]
+    public void A_marker_is_reported_without_any_incident() =>
+        Assert.Single(ChangeAnalyzer.Compare([new Marker("m", TestData.Start, "x").AsChange()], [], TestData.Start.AddDays(1)));
+}

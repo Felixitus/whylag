@@ -45,6 +45,8 @@ public partial class App : Application
 
     public SessionStore Sessions { get; private set; } = new();
 
+    public MarkerStore Markers { get; private set; } = new();
+
     /// <summary>Raised on the UI thread when a gaming session summary was saved.</summary>
     public event Action<GameSession>? SessionAdded;
 
@@ -172,6 +174,7 @@ public partial class App : Application
             if (Directory.Exists(AppPaths.Root)) Directory.Delete(AppPaths.Root, recursive: true);
             Store = new IncidentStore();
             Sessions = new SessionStore();
+            Markers = new MarkerStore();
         }
         Settings = SettingsStore.Load();
         // "--lang <code>" overrides the language for this run without changing the settings (e.g. for screenshots).
@@ -358,7 +361,7 @@ public partial class App : Application
             return;
         }
         if (automatic) _lastAutoNotice = DateTimeOffset.Now;
-        var headline = incident.Findings.FirstOrDefault()?.Title ?? T("app.incident.none");
+        var headline = ReportBuilder.Top(incident)?.Title ?? T("app.incident.none");
         _tray?.Notify(automatic ? T("app.incident.auto") : T("app.incident.manual"), headline, () => ShowMain(incident.Id));
     }
 

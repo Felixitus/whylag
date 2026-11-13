@@ -32,7 +32,7 @@ public static class PatternAnalyzer
         var occurrences = incidents
             .Where(i => !i.Id.EndsWith("-demo", StringComparison.Ordinal))
             .SelectMany(i => i.Findings
-                .Where(f => f.Confidence >= 0.5)
+                .Where(f => f.Confidence >= 0.5 && f.Confirmed != false) // not what the user ruled out
                 .Select(f => (Incident: i, Finding: f, Key: $"{f.RuleId}|{f.Subject?.ToLowerInvariant()}")))
             .GroupBy(x => x.Key);
 

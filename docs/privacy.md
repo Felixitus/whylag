@@ -20,6 +20,8 @@ The update comparison reads driver and Windows Update events from the local even
 Wi-Fi network names or access-point addresses (compared in memory only).
 
 When an incident is captured, the last three minutes are saved to `%LOCALAPPDATA%\WhyLag\incidents\<id>.json`.
+Markers you set and your answers on findings are stored on this PC only (`markers.json`, the incident files).
+
 Copied and exported reports remove user and computer names and the account in profile paths. The report for your
 provider contains only dates, times and ping measurements.
 

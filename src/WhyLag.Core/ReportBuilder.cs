@@ -6,6 +6,30 @@ namespace WhyLag.Core;
 /// <summary>Plain Markdown report that can be pasted into forums or support tickets.</summary>
 public static class ReportBuilder
 {
+    /// <summary>The finding shown as the cause: one the user confirmed, otherwise the first the user did not rule out.</summary>
+    public static Finding? Top(Incident incident) =>
+        incident.Findings.FirstOrDefault(f => f.Confirmed == true) ?? incident.Findings.FirstOrDefault(f => f.Confirmed != false);
+
+    /// <summary>A few lines for a chat or forum post: when, the likely cause with its strongest evidence, what else happened.</summary>
+    public static string Short(Incident incident)
+    {
+        var sb = new StringBuilder();
+        var fg = incident.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess;
+        sb.Append($"WhyLag · {incident.TriggeredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm", Culture)}");
+        if (fg is not null) sb.Append($" · {T("report.foreground", fg)}");
+        sb.AppendLine();
+        if (Top(incident) is not { } top)
+        {
+            sb.AppendLine(T("report.none.title"));
+            return Anonymize(sb.ToString().TrimEnd());
+        }
+        sb.AppendLine($"{top.Title} ({T("ui.rulematch", top.Confidence.ToString("P0", Culture))})");
+        foreach (var e in top.Evidence.Take(3)) sb.AppendLine($"- {e.Description}");
+        var others = incident.Findings.Where(f => f != top && f.Confirmed != false).Select(f => f.Title).Take(3).ToList();
+        if (others.Count > 0) sb.AppendLine(T("report.short.also", string.Join("; ", others)));
+        return Anonymize(sb.ToString().TrimEnd());
+    }
+
     public static string Markdown(Incident incident, bool anonymize = false)
     {
         var sb = new StringBuilder();

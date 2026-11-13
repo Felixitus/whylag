@@ -153,6 +153,10 @@ Kept on purpose: left navigation, list next to report, settings pages, palette.
 | Session compared with the usual of the same game | "Worse than your usual Deadlock" says more than absolute numbers |
 | Seven-day bars on the overview | Shows at a glance whether it is getting better or worse |
 | Category colours that can be told apart | GPU and memory had nearly the same purple; checked for colour-vision deficiencies |
+| Answer on findings (was / was not the cause) | The user's real experience corrects the ranking and patterns, and reaches rule work through bug reports |
+| Own markers with before/after counts | Answers "did my change help?" for changes the event log does not know |
+| Short summary and image of a report | Easier to share than a full report |
+| Week compared with the week before | Shows the trend |
 
 **Recommended, not implemented**
 
@@ -160,7 +164,6 @@ Kept on purpose: left navigation, list next to report, settings pages, palette.
 |---|---|---|---|---|
 | Compare two sessions of a game | Answers "did the driver update help?" | Session statistics exist; add a comparison view | Medium | High |
 | Group repeated incidents | 20× the same cause should be one row | Group by rule within an hour | Medium | Medium |
-| Mark a finding as right or wrong | Tunes rules with the user's real experience | Store feedback, use as an export for rule work | Medium | Medium |
 | Sharper per-process disk attribution | Names the file activity behind a disk hitch | ETW in the helper; privacy needs thought (file names are not recorded today) | High | Low |
 
 ## 9. Tests

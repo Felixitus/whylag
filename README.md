@@ -30,6 +30,9 @@ minutes in memory, so the moment can still be analysed afterwards.
 - **Report for your provider**: a dated list of moments in which the line was slow while your router was fast.
 - **Worse than usual?** Every gaming session is compared with your earlier sessions of the same game.
 - **Keep what matters**: a pinned incident is never deleted to make room for new ones.
+- **Did my change help?** Set a marker ("graphics driver updated") and compare the week before and after.
+- **Your answer counts**: mark a finding as the cause or not the cause; patterns follow.
+- **Share**: full report, a short summary for chats, or an image.
 - **Incident list** by day with search, category filter and bulk delete; each report lists the recorded Windows events
   and keeps your own note.
 - **Driver latency (optional)**: a small elevated helper names drivers that block the CPU (audio crackles, input lag).

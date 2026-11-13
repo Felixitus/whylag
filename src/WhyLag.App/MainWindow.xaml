@@ -171,6 +171,7 @@
                                         <StackPanel>
                                             <TextBlock Text="{local:Tr ui.today.weeklabel}" Style="{StaticResource Caption}"/>
                                             <TextBlock x:Name="TodayWeek" Style="{StaticResource Metric}" Margin="0,2,0,0"/>
+                                            <TextBlock x:Name="TodayTrend" Style="{StaticResource Overline}" FontWeight="Normal" TextWrapping="Wrap" Visibility="Collapsed"/>
                                         </StackPanel>
                                     </DockPanel>
                                 </Border>
@@ -328,7 +329,14 @@
                                     <Button x:Name="PinButton" Style="{StaticResource GhostButton}" Click="Pin_Click">
                                         <TextBlock x:Name="PinIcon" Text="&#xE718;" Style="{StaticResource Icon}" FontSize="15"/>
                                     </Button>
-                                    <Button Style="{StaticResource GhostButton}" Click="Copy_Click" ToolTip="{local:Tr ui.copy}" AutomationProperties.Name="{local:Tr ui.copy}">
+                                    <Button x:Name="CopyButton" Style="{StaticResource GhostButton}" Click="CopyMenu_Click" ToolTip="{local:Tr ui.copy}" AutomationProperties.Name="{local:Tr ui.copy}">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="{local:Tr ui.copy}" InputGestureText="Ctrl+C" Click="Copy_Click"/>
+                                                <MenuItem Header="{local:Tr ui.copy.short}" Click="CopyShort_Click"/>
+                                                <MenuItem Header="{local:Tr ui.copy.image}" Click="CopyImage_Click"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
                                         <TextBlock Text="&#xE8C8;" Style="{StaticResource Icon}" FontSize="15"/>
                                     </Button>
                                     <Button Style="{StaticResource GhostButton}" Click="Export_Click" ToolTip="{local:Tr ui.export.tip}" AutomationProperties.Name="{local:Tr ui.export}">
@@ -341,7 +349,7 @@
                                         <TextBlock Text="&#xE74D;" Style="{StaticResource Icon}" FontSize="15"/>
                                     </Button>
                                 </StackPanel>
-                                <StackPanel>
+                                <StackPanel x:Name="ReportHeading">
                                     <WrapPanel Margin="0,0,0,6">
                                         <Border x:Name="HeroChip" Style="{StaticResource Chip}">
                                             <TextBlock x:Name="HeroChipText" FontSize="11" FontWeight="SemiBold"/>
@@ -356,7 +364,7 @@
 
                         <ScrollViewer x:Name="ReportView" VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="28,16,28,24">
-                                <Border Style="{StaticResource Card}" Padding="0">
+                                <Border x:Name="KpiCard" Style="{StaticResource Card}" Padding="0">
                                     <ItemsControl x:Name="Kpis">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -383,7 +391,7 @@
                                     </ItemsControl>
                                 </Border>
 
-                                <Border Style="{StaticResource Card}">
+                                <Border x:Name="ChartCard" Style="{StaticResource Card}">
                                     <StackPanel>
                                         <TextBlock Text="{local:Tr ui.timeline}" Style="{StaticResource Subtitle}"/>
                                         <TextBlock Style="{StaticResource Overline}" FontWeight="Normal" TextWrapping="Wrap" Margin="0,2,0,0" Text="{local:Tr ui.timeline.legend}"/>
@@ -399,18 +407,27 @@
                                             <Border Padding="18,14" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
                                                 <StackPanel>
                                                     <DockPanel Margin="0,0,0,4">
-                                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" ToolTip="{local:Tr ui.confidence.tip}">
-                                                            <TextBlock Text="{Binding ConfidenceText}" Style="{StaticResource Overline}" FontWeight="Normal" VerticalAlignment="Center"/>
+                                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="12,-5,-6,-5">
+                                                            <TextBlock Text="{Binding ConfidenceText}" Style="{StaticResource Overline}" FontWeight="Normal" VerticalAlignment="Center"
+                                                                       ToolTip="{local:Tr ui.confidence.tip}" Margin="0,0,8,0"/>
+                                                            <Button Style="{StaticResource GhostButton}" Padding="6,4" Tag="{Binding Id}" Click="FindingRight_Click" Visibility="{Binding FeedbackVisibility}"
+                                                                    ToolTip="{local:Tr ui.feedback.right}" AutomationProperties.Name="{local:Tr ui.feedback.right}">
+                                                                <TextBlock Text="&#xE8E1;" Style="{StaticResource Icon}" FontSize="13" Foreground="{Binding RightBrush, Converter={StaticResource ResourceBrush}}"/>
+                                                            </Button>
+                                                            <Button Style="{StaticResource GhostButton}" Padding="6,4" Tag="{Binding Id}" Click="FindingWrong_Click" Visibility="{Binding FeedbackVisibility}"
+                                                                    ToolTip="{local:Tr ui.feedback.wrong}" AutomationProperties.Name="{local:Tr ui.feedback.wrong}">
+                                                                <TextBlock Text="&#xE8E0;" Style="{StaticResource Icon}" FontSize="13" Foreground="{Binding WrongBrush, Converter={StaticResource ResourceBrush}}"/>
+                                                            </Button>
                                                         </StackPanel>
                                                         <Ellipse Width="7" Height="7" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
                                                         <TextBlock Style="{StaticResource Caption}">
                                                             <Run Text="{Binding CategoryLabel, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding Id, Mode=OneWay}"/>
                                                         </TextBlock>
                                                     </DockPanel>
-                                                    <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}" Margin="0,2,0,0"/>
-                                                    <TextBlock Text="{Binding Summary}" Style="{StaticResource Muted}" Margin="0,4,0,0"/>
+                                                    <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}" Margin="0,2,0,0" Opacity="{Binding BodyOpacity}"/>
+                                                    <TextBlock Text="{Binding Summary}" Style="{StaticResource Muted}" Margin="0,4,0,0" Opacity="{Binding BodyOpacity}"/>
 
-                                                    <ItemsControl ItemsSource="{Binding Evidence}" Margin="0,10,0,0" Visibility="{Binding EvidenceVisibility}">
+                                                    <ItemsControl ItemsSource="{Binding Evidence}" Margin="0,10,0,0" Visibility="{Binding EvidenceVisibility}" Opacity="{Binding BodyOpacity}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <Grid>
@@ -430,7 +447,7 @@
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
 
-                                                    <ItemsControl ItemsSource="{Binding Checks}" Margin="0,6,0,0">
+                                                    <ItemsControl ItemsSource="{Binding Checks}" Margin="0,6,0,0" Opacity="{Binding BodyOpacity}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
                                                                 <DockPanel Margin="0,3">
@@ -592,16 +609,25 @@
                         </ItemsControl>
                         </Border>
 
-                        <TextBlock Text="{local:Tr ui.changes}" Style="{StaticResource SectionTitle}" Margin="0,14,0,0"/>
-                        <TextBlock Text="{local:Tr ui.changes.subtitle}" Style="{StaticResource Caption}" Margin="0,2,0,10"/>
+                        <DockPanel Margin="0,14,0,10">
+                            <Button DockPanel.Dock="Right" Content="{local:Tr ui.marker.add}" ToolTip="{local:Tr ui.marker.tip}" Click="AddMarker_Click" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                            <StackPanel>
+                                <TextBlock Text="{local:Tr ui.changes}" Style="{StaticResource SectionTitle}" Margin="0"/>
+                                <TextBlock Text="{local:Tr ui.changes.subtitle}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </DockPanel>
                         <TextBlock x:Name="ChangesStatus" Style="{StaticResource Muted}"/>
                         <ItemsControl x:Name="ChangeList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Padding="0,8" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
                                         <DockPanel>
-                                            <TextBlock DockPanel.Dock="Left" Text="&#xE7BA;" Style="{StaticResource Icon}" FontSize="14" Margin="0,2,12,0" VerticalAlignment="Top"
-                                                       Foreground="{DynamicResource SystemFillColorCautionBrush}"/>
+                                            <TextBlock DockPanel.Dock="Left" Text="{Binding Icon}" Style="{StaticResource Icon}" FontSize="14" Margin="0,2,12,0" VerticalAlignment="Top"
+                                                       Foreground="{Binding IconBrush, Converter={StaticResource ResourceBrush}}"/>
+                                            <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Tag="{Binding MarkerId}" Click="RemoveMarker_Click" Visibility="{Binding RemoveVisibility}"
+                                                    VerticalAlignment="Center" ToolTip="{local:Tr ui.marker.remove}" AutomationProperties.Name="{local:Tr ui.marker.remove}">
+                                                <TextBlock Text="&#xE74D;" Style="{StaticResource Icon}" FontSize="13"/>
+                                            </Button>
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Title}" Style="{StaticResource Subtitle}"/>
                                                 <TextBlock Text="{Binding Detail}" Style="{StaticResource Muted}" Margin="0,2,0,0"/>

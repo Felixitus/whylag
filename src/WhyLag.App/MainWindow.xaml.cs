@@ -25,8 +25,14 @@ public sealed record IncidentListItem(string Id, string Time, string Trigger, st
 public sealed record EvidenceRow(string Id, string Time, string Text);
 
 public sealed record FindingView(string Id, string Title, FindingCategory Category, string CategoryLabel, string Summary,
-    double Confidence, string ConfidenceText, List<EvidenceRow> Evidence, List<string> Checks)
+    double Confidence, string ConfidenceText, List<EvidenceRow> Evidence, List<string> Checks, bool? Confirmed = null)
 {
+    public Visibility FeedbackVisibility => Id.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    public string RightBrush => Confirmed == true ? "AccentTextFillColorPrimaryBrush" : "TextFillColorTertiaryBrush";
+    public string WrongBrush => Confirmed == false ? "SystemFillColorCriticalBrush" : "TextFillColorTertiaryBrush";
+    /// <summary>A finding the user ruled out stays readable but steps back.</summary>
+    public double BodyOpacity => Confirmed == false ? 0.5 : 1;
+
     public Visibility EvidenceVisibility => Evidence.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
 }
 
@@ -40,7 +46,10 @@ public sealed record SessionView(string Title, string When, string Fps, string L
     public Visibility VerdictVisibility => Verdict.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
 }
 
-public sealed record ChangeView(string Title, string Detail);
+public sealed record ChangeView(string Title, string Detail, string Icon, string IconBrush, string? MarkerId)
+{
+    public Visibility RemoveVisibility => MarkerId is null ? Visibility.Collapsed : Visibility.Visible;
+}
 
 public sealed record EventRow(string Time, string Level, string Source, int Id, string Message);
 
@@ -245,6 +254,12 @@ public partial class MainWindow : Window
         WeekChart.Values = perDay;
         WeekChart.Labels = days.Select(d => Culture.DateTimeFormat.GetShortestDayName(d.DayOfWeek)).ToArray();
         WeekChart.ToolTip = string.Join("\n", days.Select((d, n) => $"{d.ToString("ddd d.", Culture)}  {perDay[n]}"));
+        // Compared with the seven days before, once the history reaches that far back.
+        var before = real.Count(i => i.Local >= DateTime.Today.AddDays(-13) && i.Local < DateTime.Today.AddDays(-6));
+        var delta = perDay.Sum() - before;
+        TodayTrend.Text = real.Count == 0 || real[^1].Local >= DateTime.Today.AddDays(-6) ? ""
+            : delta == 0 ? T("ui.today.trend.same") : T(delta < 0 ? "ui.today.trend.less" : "ui.today.trend.more", Math.Abs(delta));
+        TodayTrend.Visibility = TodayTrend.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         TodayText.Text = top is not null ? $"{top.Key} ({top.Count()}×)" : T("ui.today.none");
         RecentList.ItemsSource = _items.Take(5).ToList();
         RecentCard.Visibility = RecentHeader.Visibility = _items.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -266,7 +281,7 @@ public partial class MainWindow : Window
     {
         var local = i.TriggeredAt.ToLocalTime();
         var trigger = i.Id.EndsWith("-demo", StringComparison.Ordinal) ? T("trigger.short.demo") : T($"trigger.short.{i.Trigger}");
-        var top = i.Findings.FirstOrDefault();
+        var top = ReportBuilder.Top(i);
         var app = i.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess ?? "";
         var flags = (i.Explanation is null ? "" : " · AI") + (string.IsNullOrWhiteSpace(i.Note) ? "" : " · ✎");
         return new IncidentListItem(i.Id, local.ToString("HH:mm:ss", Culture), trigger, top?.Title ?? T("report.none.title"), top?.Category,
@@ -442,13 +457,35 @@ public partial class MainWindow : Window
     {
         ChangesStatus.Text = T("ui.changes.loading");
         ChangeList.ItemsSource = null;
-        var impacts = await Task.Run(() => ChangeAnalyzer.Compare(Collectors.SystemChangeReader.Read(TimeSpan.FromDays(90)), incidents, DateTimeOffset.Now));
+        var markers = Host.Markers.Load().Select(m => m.AsChange()).ToList();
+        var impacts = await Task.Run(() => ChangeAnalyzer.Compare([.. Collectors.SystemChangeReader.Read(TimeSpan.FromDays(90)), .. markers], incidents, DateTimeOffset.Now));
         if (!Alive) return;
         ChangeList.ItemsSource = impacts.Select(i => new ChangeView(
-            T(i.Change.Kind == ChangeKind.Driver ? "ui.changes.driver" : "ui.changes.update", i.Change.Description, i.Change.At.ToLocalTime().ToString("d", Culture)),
-            T("ui.changes.detail", i.After, i.DaysAfter.ToString("0", Culture), i.Before, i.DaysBefore.ToString("0", Culture)))).ToList();
+            T(i.Change.Kind switch { ChangeKind.Driver => "ui.changes.driver", ChangeKind.Marker => "ui.marker.title", _ => "ui.changes.update" },
+                i.Change.Description, i.Change.At.ToLocalTime().ToString("d", Culture)),
+            T("ui.changes.detail", i.After, i.DaysAfter.ToString("0", Culture), i.Before, i.DaysBefore.ToString("0", Culture)),
+            i.Change.Kind == ChangeKind.Marker ? "\uE7C1" : "\uE7BA",
+            i.Change.Kind != ChangeKind.Marker || i.Worse ? "SystemFillColorCautionBrush" : "TextFillColorSecondaryBrush",
+            i.Change.MarkerId)).ToList();
         ChangesStatus.Text = impacts.Count == 0 ? T("ui.changes.none") : "";
     }
+
+    /// <summary>Marks this moment ("new graphics driver") to compare the lag reports before and after it.</summary>
+    private void AddMarker_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new InputDialog(T("ui.marker.add"), T("ui.marker.prompt"), MarkerStore.MaxTextLength) { Owner = this };
+        if (dialog.ShowDialog() != true || !Alive) return;
+        if (Host.Markers.Add(dialog.Value, DateTimeOffset.Now) is not null) _ = ReloadChangesAsync();
+    }
+
+    private void RemoveMarker_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string id }) return;
+        Host.Markers.Remove(id);
+        _ = ReloadChangesAsync();
+    }
+
+    private async Task ReloadChangesAsync() => await LoadChangesAsync(await Task.Run(Host.Store.LoadSummaries));
 
     private void Sessions_Click(object sender, RoutedEventArgs e)
     {
@@ -506,13 +543,8 @@ public partial class MainWindow : Window
         ReportEmpty.Visibility = Visibility.Collapsed;
         ReportPane.Visibility = Visibility.Visible;
 
-        var top = incident.Findings.FirstOrDefault();
-        var color = Palette.For(top?.Category ?? FindingCategory.Background);
-        HeroChip.Background = Palette.Brush(color, 0.16);
-        HeroChipText.Foreground = Palette.Brush(color);
-        HeroChipText.Text = top is null ? T("ui.hero.none") : T("ui.hero.likely", Palette.Label(top.Category));
+        ShowHero(incident);
         ReportWhen.Text = incident.TriggeredAt.ToLocalTime().ToString("D", Culture) + " · " + incident.TriggeredAt.ToLocalTime().ToString("HH:mm:ss", Culture);
-        ReportTitle.Text = top?.Title ?? T("report.none.title");
         ShowPinState(Host.Store.Pinned().Contains(incident.Id));
 
         var fg = incident.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess;
@@ -523,14 +555,49 @@ public partial class MainWindow : Window
         Kpis.ItemsSource = BuildKpis(incident);
         Chart.Incident = incident;
 
+        ShowFindings(incident);
+        ShowRest(incident);
+    }
+
+    private void ShowFindings(Incident incident)
+    {
         FindingsHeader.Text = incident.Findings.Count == 0 ? T("ui.findings.none") : T("ui.findings");
         FindingsList.ItemsSource = incident.Findings.Count == 0
             ? new[] { new FindingView("", T("report.none.title"), FindingCategory.Background, T("ui.result"), T("report.none.text"), 0, "", [], []) }
             : incident.Findings.Select(f => new FindingView(f.Id, f.Title, f.Category, Palette.Label(f.Category), f.Summary,
                 f.Confidence * 100, T("ui.rulematch", f.Confidence.ToString("P0", Culture)),
                 f.Evidence.Select(e => new EvidenceRow(e.Id, e.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture), e.Description)).ToList(),
-                f.Checks)).ToList();
+                f.Checks, f.Confirmed)).ToList();
+    }
 
+    private void FindingRight_Click(object sender, RoutedEventArgs e) => Answer(sender, true);
+
+    private void FindingWrong_Click(object sender, RoutedEventArgs e) => Answer(sender, false);
+
+    /// <summary>
+    /// Saves whether a finding was the cause. A second click takes the answer back. What the user ruled out no longer
+    /// counts as the cause in the list and in recurring patterns.
+    /// </summary>
+    private void Answer(object sender, bool confirmed)
+    {
+        if (_current is not { } incident || sender is not FrameworkElement { Tag: string id }) return;
+        if (incident.Findings.FirstOrDefault(f => f.Id == id) is not { } finding) return;
+        finding.Confirmed = finding.Confirmed == confirmed ? null : confirmed;
+        Host.Store.Save(incident);
+        ShowFindings(incident);
+        ShowHero(incident);
+        var index = _items.ToList().FindIndex(i => i.Id == incident.Id);
+        if (index < 0) return;
+        _replacing = true;
+        var selected = IncidentList.SelectedItem is IncidentListItem s && s.Id == incident.Id;
+        _items[index] = ToItem(incident, _items[index].Pinned);
+        if (selected) IncidentList.SelectedItem = _items[index];
+        _replacing = false;
+        RefreshToday();
+    }
+
+    private void ShowRest(Incident incident)
+    {
         EventsTable.ItemsSource = incident.Events.OrderBy(ev => ev.Timestamp).Select(ev => new EventRow(
             ev.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.InvariantCulture), T($"level.{ev.Level}"), ev.Provider, ev.EventId,
             ev.Message.ReplaceLineEndings(" "))).ToList();
@@ -697,6 +764,24 @@ public partial class MainWindow : Window
         RefreshStatus();
     }
 
+    private void ShowHero(Incident incident)
+    {
+        var top = ReportBuilder.Top(incident);
+        var color = Palette.For(top?.Category ?? FindingCategory.Background);
+        HeroChip.Background = Palette.Brush(color, 0.16);
+        HeroChipText.Foreground = Palette.Brush(color);
+        HeroChipText.Text = top is null ? T("ui.hero.none") : T("ui.hero.likely", Palette.Label(top.Category));
+        ReportTitle.Text = top?.Title ?? T("report.none.title");
+    }
+
+    private void CopyMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (CopyButton.ContextMenu is not { } menu) return;
+        menu.PlacementTarget = CopyButton;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
+
     private void Copy_Click(object sender, RoutedEventArgs e)
     {
         if (_current is null) return;
@@ -704,13 +789,76 @@ public partial class MainWindow : Window
         ShowAi(_current.Explanation, T("ui.copied"));
     }
 
+    private void CopyShort_Click(object sender, RoutedEventArgs e)
+    {
+        if (_current is null) return;
+        Clipboard.SetText(ReportBuilder.Short(_current));
+        ShowAi(_current.Explanation, T("ui.copied"));
+    }
+
+    private void CopyImage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_current is null || RenderShareImage() is not { } image) return;
+        Clipboard.SetImage(image);
+        ShowAi(_current.Explanation, T("ui.copied"));
+    }
+
+    /// <summary>
+    /// The top of the open report (cause, peak values, timeline) as a picture for chats and forums. It shows what the
+    /// report shows: program names, but no user or computer name.
+    /// </summary>
+    internal System.Windows.Media.Imaging.BitmapSource? RenderShareImage()
+    {
+        const double pad = 28, gap = 14;
+        FrameworkElement[] parts = [ReportHeading, KpiCard, ChartCard];
+        if (parts.Any(p => p.ActualWidth <= 0 || p.ActualHeight <= 0)) return null;
+        var width = parts.Max(p => p.ActualWidth) + 2 * pad;
+        var footer = new System.Windows.Media.FormattedText("WhyLag · github.com/" + Updates.Repository, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            new System.Windows.Media.Typeface("Segoe UI"), 11, (System.Windows.Media.Brush)FindResource("TextFillColorTertiaryBrush"),
+            System.Windows.Media.VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        var height = pad + parts.Sum(p => p.ActualHeight + gap) + footer.Height + pad * 0.6;
+
+        var visual = new System.Windows.Media.DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            dc.DrawRectangle(Background as System.Windows.Media.SolidColorBrush ?? System.Windows.Media.Brushes.Black, null, new Rect(0, 0, width, height));
+            var y = pad;
+            foreach (var part in parts)
+            {
+                var brush = new System.Windows.Media.VisualBrush(part)
+                {
+                    Stretch = System.Windows.Media.Stretch.None,
+                    AlignmentX = System.Windows.Media.AlignmentX.Left,
+                    AlignmentY = System.Windows.Media.AlignmentY.Top,
+                };
+                dc.DrawRectangle(brush, null, new Rect(pad, y, part.ActualWidth, part.ActualHeight));
+                y += part.ActualHeight + gap;
+            }
+            dc.DrawText(footer, new Point(pad, y));
+        }
+        var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this);
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Ceiling(width * dpi.DpiScaleX), (int)Math.Ceiling(height * dpi.DpiScaleY),
+            dpi.PixelsPerInchX, dpi.PixelsPerInchY, System.Windows.Media.PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
     private void Export_Click(object sender, RoutedEventArgs e)
     {
         if (_current is null) return;
         // One export for both formats: HTML (with timeline, opens in the browser) or Markdown (for forums and issues).
-        var dialog = new SaveFileDialog { FileName = $"whylag-{_current.Id}", Filter = "HTML|*.html|Markdown|*.md|Text|*.txt" };
+        var dialog = new SaveFileDialog { FileName = $"whylag-{_current.Id}", Filter = "HTML|*.html|Markdown|*.md|Text|*.txt|PNG|*.png" };
         if (dialog.ShowDialog(this) != true) return;
-        if (dialog.FilterIndex == 1)
+        if (dialog.FilterIndex == 4)
+        {
+            if (RenderShareImage() is not { } image) return;
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
+            using var file = File.Create(dialog.FileName);
+            encoder.Save(file);
+        }
+        else if (dialog.FilterIndex == 1)
         {
             File.WriteAllText(dialog.FileName, HtmlReport.Build(_current));
             App.OpenFile(dialog.FileName);

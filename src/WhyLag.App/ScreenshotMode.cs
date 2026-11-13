@@ -47,6 +47,11 @@ internal static class ScreenshotMode
             window.ShowPreview(demo.Ticks);
             await Settle();
             Save(window, Path.Combine(folder, $"{name}.png"));
+            if (name != "patterns") continue;
+            await Task.Delay(1500); // the update history is read from the event log
+            window.PatternsView.ScrollToBottom();
+            await Settle();
+            Save(window, Path.Combine(folder, "patterns-end.png"));
         }
 
         window.TableButton.IsChecked = true;
@@ -54,6 +59,14 @@ internal static class ScreenshotMode
         window.Select(demo.Id);
         await Settle();
         Save(window, Path.Combine(folder, "report.png"));
+        if (window.RenderShareImage() is { } share)
+        {
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(share));
+            using var file = File.Create(Path.Combine(folder, "share.png"));
+            encoder.Save(file);
+        }
+        await File.WriteAllTextAsync(Path.Combine(folder, "short.txt"), ReportBuilder.Short(demo));
         window.ReportView.ScrollToBottom();
         await Settle();
         Save(window, Path.Combine(folder, "report-end.png"));
@@ -85,6 +98,18 @@ internal static class ScreenshotMode
             Save(settings, Path.Combine(folder, $"settings-{page}.png"));
         }
         settings.Close();
+
+        var input = new InputDialog(Core.Localization.Loc.T("ui.marker.add"), Core.Localization.Loc.T("ui.marker.prompt"), MarkerStore.MaxTextLength)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            Left = -30000,
+            Top = -30000,
+            ShowActivated = false,
+        };
+        input.Show();
+        await Settle();
+        Save(input, Path.Combine(folder, "marker-dialog.png"));
+        input.Close();
     }
 
     private static async Task Settle()
@@ -141,6 +166,9 @@ internal static class ScreenshotMode
         }
         app.Store.Save(demo);
         app.Store.SetPinned(demo.Id, true);
+        if (demo.Findings.Count > 1) demo.Findings[1].Confirmed = false;
+        app.Store.Save(demo);
+        app.Markers.Add(Core.Localization.Loc.Language == "de" ? "Grafiktreiber aktualisiert" : "Graphics driver updated", DateTimeOffset.Now.AddDays(-3));
 
         foreach (var (name, days, fps, low, hitches, minutes) in new[]
                  {

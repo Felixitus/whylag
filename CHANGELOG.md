@@ -2,7 +2,7 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
 
-## [Unreleased]
+## [0.1.5] - 2026-11-13
 
 Second security review and new features, see [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
 

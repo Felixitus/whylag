@@ -586,5 +586,11 @@
   "provider.col.count": "Moments",
   "provider.details": "Détails",
   "err.hotkey.busy": "Le raccourci {0} est déjà utilisé par un autre programme. Choisissez-en un autre dans les paramètres.",
-  "update.noinstaller": "Cette version ne contient pas de programme d’installation ou de somme de contrôle."
+  "update.noinstaller": "Cette version ne contient pas de programme d’installation ou de somme de contrôle.",
+  "ui.pin": "Conserver cet incident (jamais supprimé automatiquement)",
+  "ui.unpin": "Ne plus conserver cet incident",
+  "session.usual.worse": "Moins bien que d’habitude",
+  "session.usual.better": "Mieux que d’habitude",
+  "session.usual.same": "Comme d’habitude",
+  "session.usual.detail": "D’habitude {0} fps · 1 % bas {1} · {2} à-coups par heure ({3} dernières sessions)"
 }

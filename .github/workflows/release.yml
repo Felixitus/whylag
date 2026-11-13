@@ -68,7 +68,7 @@ jobs:
           Compress-Archive -Path artifacts/WhyLag/* -DestinationPath $zip.FullName
 
       - name: Install Inno Setup
-        run: choco install innosetup --yes --no-progress
+        run: choco install innosetup --version=6.7.1 --yes --no-progress
 
       - name: Build installer
         shell: pwsh

@@ -586,5 +586,11 @@
   "provider.col.count": "Chwile",
   "provider.details": "Szczegóły",
   "err.hotkey.busy": "Skrót {0} jest już używany przez inny program. Wybierz inny w ustawieniach.",
-  "update.noinstaller": "To wydanie nie zawiera instalatora lub sumy kontrolnej."
+  "update.noinstaller": "To wydanie nie zawiera instalatora lub sumy kontrolnej.",
+  "ui.pin": "Zachowaj to zdarzenie (nigdy nie jest usuwane automatycznie)",
+  "ui.unpin": "Nie zachowuj już tego zdarzenia",
+  "session.usual.worse": "Gorzej niż zwykle",
+  "session.usual.better": "Lepiej niż zwykle",
+  "session.usual.same": "Jak zwykle",
+  "session.usual.detail": "Zwykle {0} fps · 1 % low {1} · {2} przycięć na godzinę (ostatnie {3} sesje)"
 }

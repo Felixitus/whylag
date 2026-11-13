@@ -32,16 +32,34 @@ public static class PresentMonLocator
 
     internal static bool IsGenuine(string path)
     {
+        using var file = OpenGenuine(path);
+        return file is not null;
+    }
+
+    /// <summary>
+    /// Opens the file for reading only and checks it. While the returned stream is open, other programs can read and
+    /// run the file but not change, replace or delete it, so what is started is what was checked. Null when the
+    /// file is missing or not the known release.
+    /// </summary>
+    public static FileStream? OpenGenuine(string path) => OpenVerified(path, Sha256);
+
+    internal static FileStream? OpenVerified(string path, string sha256)
+    {
+        FileStream? file = null;
         try
         {
-            using var file = File.OpenRead(path);
-            return Convert.ToHexStringLower(SHA256.HashData(file)) == Sha256;
+            file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (Convert.ToHexStringLower(SHA256.HashData(file)) == sha256) return file;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return false;
+            // missing or locked: not usable
         }
+        file?.Dispose();
+        return null;
     }
+
+    private const long MaxDownloadBytes = 50 * 1024 * 1024;
 
     /// <summary>True when ETW sessions can be started: elevated, or member of "Performance Log Users".</summary>
     public static bool HasTracePermission()
@@ -81,6 +99,7 @@ public static class PresentMonLocator
             {
                 await file.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
                 done += read;
+                if (done > MaxDownloadBytes) throw new InvalidDataException(T("err.presentmon.hash"));
                 if (total > 0) progress?.Report((double)done / total.Value);
             }
         }

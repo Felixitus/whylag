@@ -281,3 +281,15 @@ public class ModelAdvisorTests
         Assert.Equal("deepseek-r1:8b", ModelAdvisor.PickInstalled(installed));
     }
 }
+
+public class LinkTests
+{
+    [Theory]
+    [InlineData("Download the fix from https://example.com/fix.exe", true)]
+    [InlineData("Open HTTP://EXAMPLE.COM", true)]
+    [InlineData("Visit www.example.com for a tool", true)]
+    [InlineData("file://server/share/tool.exe", true)]
+    [InlineData("Close the browser tabs you do not need.", false)]
+    [InlineData("The process www helper used 40 %", false)]
+    public void Links_are_recognised(string text, bool link) => Assert.Equal(link, ExplanationValidator.ContainsLink(text));
+}

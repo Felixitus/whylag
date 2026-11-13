@@ -586,5 +586,11 @@
   "provider.col.count": "Moments",
   "provider.details": "Details",
   "err.hotkey.busy": "The hotkey {0} is already used by another program. Choose a different one in Settings.",
-  "update.noinstaller": "This release has no installer or checksum for it."
+  "update.noinstaller": "This release has no installer or checksum for it.",
+  "ui.pin": "Keep this incident (never deleted automatically)",
+  "ui.unpin": "Stop keeping this incident",
+  "session.usual.worse": "Worse than usual",
+  "session.usual.better": "Better than usual",
+  "session.usual.same": "As usual",
+  "session.usual.detail": "Usually {0} fps · 1 % low {1} · {2} hitches per hour (last {3} sessions)"
 }

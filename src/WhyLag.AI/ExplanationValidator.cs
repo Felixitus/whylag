@@ -22,6 +22,15 @@ public static partial class ExplanationValidator
     [GeneratedRegex(@"(?<![\p{L}\d.,])\d+(?:[.,]\d+)?")]
     private static partial Regex NumberPattern();
 
+    /// <summary>
+    /// Links and download addresses. The facts contain program names and event texts from the system, which another
+    /// program can choose; an answer must never turn such text into something to open or download.
+    /// </summary>
+    [GeneratedRegex(@"\b(?:https?|ftp|file)://|\bwww\.[\p{L}\d-]+\.", RegexOptions.IgnoreCase)]
+    private static partial Regex LinkPattern();
+
+    internal static bool ContainsLink(string text) => LinkPattern().IsMatch(text);
+
     public static ValidationResult Validate(string raw, Incident incident, string model)
     {
         var problems = new List<string>();
@@ -60,7 +69,12 @@ public static partial class ExplanationValidator
             }
 
             var text = item.Explanation?.Trim() ?? "";
-            var steps = (item.NextSteps ?? []).Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+            var steps = (item.NextSteps ?? []).Select(s => s.Trim()).Where(s => s.Length > 0 && !ContainsLink(s)).ToList();
+            if (ContainsLink(text))
+            {
+                problems.Add($"{findingId}: contained a link and was removed.");
+                continue;
+            }
             var invented = InventedNumbers(text, allowed).Concat(steps.SelectMany(s => InventedNumbers(s, allowed))).Distinct().ToList();
             if (invented.Count > 0)
             {
@@ -92,9 +106,14 @@ public static partial class ExplanationValidator
             problems.Add($"Summary contained numbers that were never measured ({string.Join(", ", summaryInvented)}) and was removed.");
             summary = "";
         }
+        if (ContainsLink(summary))
+        {
+            problems.Add("Summary contained a link and was removed.");
+            summary = "";
+        }
 
         var caveats = (answer.Caveats ?? []).Select(c => c.Trim())
-            .Where(c => c.Length > 0 && !InventedNumbers(c, allowed).Any())
+            .Where(c => c.Length > 0 && !ContainsLink(c) && !InventedNumbers(c, allowed).Any())
             .Take(3).ToList();
 
         var explanation = new AiExplanation

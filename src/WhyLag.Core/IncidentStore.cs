@@ -74,18 +74,46 @@ public sealed class IncidentStore(string? directory = null)
         if (!IsValidId(id)) return;
         var path = PathFor(id);
         if (File.Exists(path)) File.Delete(path);
+        SetPinned(id, false);
+    }
+
+    private string PinFile => System.IO.Path.Combine(Directory, "pinned.txt");
+
+    /// <summary>Incidents the user wants to keep: <see cref="Prune"/> never removes them.</summary>
+    public HashSet<string> Pinned()
+    {
+        try
+        {
+            return File.Exists(PinFile) ? File.ReadLines(PinFile).Select(l => l.Trim()).Where(IsValidId).ToHashSet(StringComparer.Ordinal) : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    public void SetPinned(string id, bool pinned)
+    {
+        if (!IsValidId(id)) return;
+        var all = Pinned();
+        if (!(pinned ? all.Add(id) : all.Remove(id))) return;
+        System.IO.Directory.CreateDirectory(Directory);
+        var tmp = PinFile + ".tmp";
+        File.WriteAllLines(tmp, all.Order(StringComparer.Ordinal));
+        File.Move(tmp, PinFile, overwrite: true);
     }
 
     /// <summary>
     /// Keeps at most <paramref name="keep"/> incidents. Automatic ones go first, oldest first: on a line that spikes all
-    /// day they would otherwise push out the moments the user reported personally within days.
+    /// day they would otherwise push out the moments the user reported personally within days. Pinned incidents stay.
     /// </summary>
     public void Prune(int keep)
     {
         var ids = ListIds();
         var surplus = ids.Count - Math.Max(keep, 1);
         if (surplus <= 0) return;
-        var byAge = ids.AsEnumerable().Reverse().ToList();
+        var pinned = Pinned();
+        var byAge = ids.AsEnumerable().Reverse().Where(id => !pinned.Contains(id)).ToList();
         var order = byAge.Where(IsAutomatic).Concat(byAge.Where(id => !IsAutomatic(id)));
         foreach (var id in order.Take(surplus).ToList()) Delete(id);
     }

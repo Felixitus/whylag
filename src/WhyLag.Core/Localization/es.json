@@ -586,5 +586,11 @@
   "provider.col.count": "Momentos",
   "provider.details": "Detalles",
   "err.hotkey.busy": "El atajo {0} ya lo usa otro programa. Elige otro en la configuración.",
-  "update.noinstaller": "Esta versión no incluye instalador o suma de comprobación."
+  "update.noinstaller": "Esta versión no incluye instalador o suma de comprobación.",
+  "ui.pin": "Conservar este incidente (nunca se elimina automáticamente)",
+  "ui.unpin": "Dejar de conservar este incidente",
+  "session.usual.worse": "Peor de lo habitual",
+  "session.usual.better": "Mejor de lo habitual",
+  "session.usual.same": "Como siempre",
+  "session.usual.detail": "Habitual: {0} fps · 1 % mínimo {1} · {2} tirones por hora (últimas {3} sesiones)"
 }

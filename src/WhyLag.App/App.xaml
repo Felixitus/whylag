@@ -11,6 +11,7 @@
             <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
             <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
             <local:CategoryBrushConverter x:Key="CategoryBrush"/>
+            <local:ResourceBrushConverter x:Key="ResourceBrush"/>
             <local:CategoryBrushConverter x:Key="CategorySoftBrush" Opacity="0.14"/>
 
             <!-- Surfaces -->

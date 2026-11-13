@@ -83,10 +83,10 @@ public partial class App : Application
         {
             var progress = new Progress<int>(p => SetUpdateStatus(T("update.downloading", p)));
             SetUpdateStatus(T("update.downloading", 0));
-            var setup = await UpdateChecker.DownloadAsync(update, progress);
+            using var setup = await UpdateChecker.DownloadAsync(update, progress);
             if (IsExiting) return;
             SetUpdateStatus(T("update.installing"));
-            UpdateChecker.StartInstaller(setup);
+            UpdateChecker.StartInstaller(setup.Name);
             ExitApp();
         }
         catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or InvalidDataException or IOException
@@ -158,6 +158,13 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.FirstOrDefault() == LatencyHelperHost.Argument)
+        {
+            // Elevated helper mode: no UI, just the kernel latency trace (see LatencyHelperHost). This comes before
+            // anything else, so the elevated process never reads settings or other files the user can write.
+            Shutdown(LatencyHelperHost.Run(e.Args));
+            return;
+        }
         var shots = Array.IndexOf(e.Args, "--screenshots");
         if (shots >= 0)
         {
@@ -184,12 +191,6 @@ public partial class App : Application
             return;
         }
 
-        if (e.Args.FirstOrDefault() == LatencyHelperHost.Argument)
-        {
-            // Elevated helper mode: no UI, just the kernel latency trace (see LatencyHelperHost).
-            Shutdown(LatencyHelperHost.Run(e.Args));
-            return;
-        }
         if (e.Args.Contains("--exit"))
         {
             // Used by the installer and uninstaller: ask a running instance to shut down cleanly.

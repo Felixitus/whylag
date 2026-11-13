@@ -61,7 +61,17 @@ pipe. A search found no hardcoded credentials or keys in the repository.
 | S14 | Error log grew without limit | **Low** | `App.xaml.cs` | Disk use | Rotates at 1 MB | Yes |
 | S15 | Updates are unsigned; the checksum comes from the same release as the installer | **Medium** | Release process | A compromised GitHub account reaches everyone with automatic updates | SignPath workflow is prepared; needs the project owner to apply. Automatic install stays off by default | **No** |
 | S16 | Per-user install: the elevated helper starts from a folder the user can write to | **Medium** | Design | Malware running as the user could replace `WhyLag.exe` and wait for the next admin approval | Inherent to per-user apps. Options in section 10 | **No** |
-| S17 | Client side of the helper pipe does not verify the server | **Low** | `LatencyHelper.cs` | A same-user process could feed fake driver numbers; no privilege gain | Accepted | **No** |
+| S17 | Client side of the helper pipe does not verify the server | **Low** | `LatencyHelper.cs` | A same-user process could feed fake driver numbers; no privilege gain | The server process of the pipe must be the helper WhyLag started | Yes, second review (*tested* with a local pipe; not with the real elevated helper) |
+| S18 | The elevated helper loaded `config.json` and the language before it entered helper mode | **Low** | `App.xaml.cs` | An administrator process parsed a file every program of the user can write | Helper mode is the first thing checked | Yes, second review |
+| S19 | The update installer and PresentMon were checked, closed and then started | **Low** | `Maintenance.cs`, `PresentMonLocator.cs`, `PresentMonSource.cs` | A program of the same user could swap the file between check and start; matters when WhyLag runs as administrator | The file stays open without write or delete sharing from the check until it runs | Yes, second review (*tested*) |
+| S20 | AI answers could contain links | **Low** | `ExplanationValidator.cs` | Program names and event texts go into the prompt; a crafted name could try to make the model recommend a download | Answers, steps and caveats with links are removed | Yes, second review (*tested*) |
+| S21 | Bug report labelled the Ollama address by substring | **Info** | `Maintenance.cs` | `127.0.0.1.example.com` counted as local in the label (label only) | Uses the parsed address | Yes, second review |
+| S22 | CI installed the latest Inno Setup; PresentMon download had no size limit | **Low** | workflows, `PresentMonLocator.cs` | A changed build tool reaches the release; disk filled by a bad response | Version pinned (Chocolatey verifies its checksum); 50 MB limit | Yes, second review (workflow run pending) |
+
+**Second review, 2026-11-13.** All sources were read again, with the question of what an attacker with the user's
+rights, a device on the LAN or a manipulated server answer can reach. No vulnerable NuGet packages
+(`dotnet list package --vulnerable --include-transitive`). S15 and S16 are unchanged: both need code signing.
+Dependabot security alerts are turned off in the repository settings; turning them on is the owner's decision.
 
 Reviewed without findings: the AI path (cloud models refused, remote address needs confirmation, output shown as text
 and validated, nothing executed), PresentMon download (pinned hash), named events (same session only), Wi-Fi data
@@ -135,13 +145,20 @@ Kept on purpose: left navigation, list next to report, settings pages, palette.
 | Personal reports survive the automatic ones | See B9 |
 | `Ctrl+1…4`, `Ctrl+F` | Faster navigation |
 
+**Implemented in the second review**
+
+| Feature | Why |
+|---|---|
+| Keep an incident (pin) | The incident that shows the problem must not disappear when the history is full |
+| Session compared with the usual of the same game | "Worse than your usual Deadlock" says more than absolute numbers |
+| Seven-day bars on the overview | Shows at a glance whether it is getting better or worse |
+| Category colours that can be told apart | GPU and memory had nearly the same purple; checked for colour-vision deficiencies |
+
 **Recommended, not implemented**
 
 | Feature | Value | How | Effort | Priority |
 |---|---|---|---|---|
 | Compare two sessions of a game | Answers "did the driver update help?" | Session statistics exist; add a comparison view | Medium | High |
-| Per-game baseline | "Worse than your usual Deadlock" is more useful than absolute numbers | Rolling statistics per game in session store | Medium | High |
-| Keep incidents with a note | A note means the user cares | Add a `pinned` list next to the incidents, honoured by `Prune` | Low | High |
 | Group repeated incidents | 20× the same cause should be one row | Group by rule within an hour | Medium | Medium |
 | Mark a finding as right or wrong | Tunes rules with the user's real experience | Store feedback, use as an export for rule work | Medium | Medium |
 | Sharper per-process disk attribution | Names the file activity behind a disk hitch | ETW in the helper; privacy needs thought (file names are not recorded today) | High | Low |

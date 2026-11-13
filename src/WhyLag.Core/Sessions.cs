@@ -26,6 +26,41 @@ public sealed class GameSession
 
 public sealed record SessionCause(string Title, FindingCategory Category, int Count);
 
+public enum SessionVerdict { NoHistory, Usual, Better, Worse }
+
+/// <summary>How a session compares with the earlier sessions of the same game (their medians).</summary>
+public sealed record SessionComparison(SessionVerdict Verdict, int Earlier, double UsualFps, double UsualLowFps, double UsualHitchesPerHour);
+
+/// <summary>
+/// "Worse than your usual Deadlock" says more than absolute numbers: every game and PC has its own normal. A session is
+/// compared with the medians of up to ten earlier sessions of the same game; at least three are needed.
+/// </summary>
+public static class SessionBaseline
+{
+    public const int MinimumHistory = 3;
+
+    public static double HitchesPerHour(GameSession s) => s.Hitches / Math.Max(s.Duration.TotalHours, 1.0 / 12);
+
+    public static SessionComparison Compare(GameSession session, IEnumerable<GameSession> all)
+    {
+        var earlier = all
+            .Where(s => s.Start < session.Start && s.App.Equals(session.App, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(s => s.Start)
+            .Take(10)
+            .ToList();
+        if (earlier.Count < MinimumHistory) return new SessionComparison(SessionVerdict.NoHistory, earlier.Count, 0, 0, 0);
+
+        var fps = Stats.Median(earlier.Select(s => s.AverageFps).ToList());
+        var low = Stats.Median(earlier.Select(s => s.LowFps).ToList());
+        var hitches = Stats.Median(earlier.Select(HitchesPerHour).ToList());
+        var rate = HitchesPerHour(session);
+
+        var worse = session.AverageFps < fps * 0.9 || session.LowFps < low * 0.85 || rate > Math.Max(hitches * 2, hitches + 3);
+        var better = !worse && (session.AverageFps > fps * 1.1 || session.LowFps > low * 1.15) && rate <= hitches + 1;
+        return new SessionComparison(worse ? SessionVerdict.Worse : better ? SessionVerdict.Better : SessionVerdict.Usual, earlier.Count, fps, low, hitches);
+    }
+}
+
 /// <summary>
 /// Detects gaming sessions from ticks: the program in front fills the screen and presents frames continuously.
 /// A session starts after one minute and ends after 90 seconds without that program in front.

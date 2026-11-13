@@ -586,5 +586,11 @@
   "provider.col.count": "Momente",
   "provider.details": "Einzelheiten",
   "err.hotkey.busy": "Das Tastenkürzel {0} wird schon von einem anderen Programm benutzt. Wähle in den Einstellungen ein anderes.",
-  "update.noinstaller": "Dieses Release enthält keinen Installer oder keine Prüfsumme dafür."
+  "update.noinstaller": "Dieses Release enthält keinen Installer oder keine Prüfsumme dafür.",
+  "ui.pin": "Vorfall behalten (wird nie automatisch gelöscht)",
+  "ui.unpin": "Vorfall nicht mehr behalten",
+  "session.usual.worse": "Schlechter als üblich",
+  "session.usual.better": "Besser als üblich",
+  "session.usual.same": "Wie üblich",
+  "session.usual.detail": "Üblich: {0} fps · 1 % Low {1} · {2} Hänger pro Stunde (letzte {3} Sitzungen)"
 }

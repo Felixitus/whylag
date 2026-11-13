@@ -28,6 +28,8 @@ minutes in memory, so the moment can still be analysed afterwards.
 - **Overlay** with fps, frame time, load, temperatures and ping – a normal topmost window, nothing is injected into games.
 - **Recurring patterns**: *"6× seen · usually between 21:00 and 23:00 · mostly on Tuesday"*.
 - **Report for your provider**: a dated list of moments in which the line was slow while your router was fast.
+- **Worse than usual?** Every gaming session is compared with your earlier sessions of the same game.
+- **Keep what matters**: a pinned incident is never deleted to make room for new ones.
 - **Incident list** by day with search, category filter and bulk delete; each report lists the recorded Windows events
   and keeps your own note.
 - **Driver latency (optional)**: a small elevated helper names drivers that block the CPU (audio crackles, input lag).

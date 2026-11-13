@@ -140,8 +140,14 @@ internal static class ScreenshotMode
             app.Store.Save(node.Deserialize<Incident>(Json.Options)!);
         }
         app.Store.Save(demo);
+        app.Store.SetPinned(demo.Id, true);
 
-        foreach (var (name, days, fps, low, hitches, minutes) in new[] { ("Deadlock", 0, 214.0, 96.0, 3, 74), ("cs2", 1, 322.0, 148.0, 1, 41), ("Cyberpunk2077", 3, 71.0, 38.0, 12, 128) })
+        foreach (var (name, days, fps, low, hitches, minutes) in new[]
+                 {
+                     ("Deadlock", 0, 171.0, 62.0, 19, 74), ("cs2", 1, 322.0, 148.0, 1, 41), ("Deadlock", 2, 214.0, 96.0, 3, 95),
+                     ("Cyberpunk2077", 3, 71.0, 38.0, 12, 128), ("Deadlock", 4, 209.0, 101.0, 2, 62), ("Deadlock", 6, 218.0, 94.0, 4, 110),
+                     ("Deadlock", 8, 205.0, 92.0, 3, 80),
+                 })
         {
             var start = DateTimeOffset.Now.AddDays(-days).AddHours(-3);
             app.Sessions.Save(new GameSession
@@ -153,8 +159,8 @@ internal static class ScreenshotMode
                 AverageFps = fps,
                 LowFps = low,
                 Hitches = hitches,
-                AverageCpu = 42,
-                AverageGpu = 88,
+                AverageCpu = 38 + hitches,
+                AverageGpu = name == "cs2" ? 71 : 88 + days % 3 * 3,
             });
         }
         return demo;

@@ -586,5 +586,11 @@
   "provider.col.count": "Momentos",
   "provider.details": "Detalhes",
   "err.hotkey.busy": "O atalho {0} já é usado por outro programa. Escolha outro nas configurações.",
-  "update.noinstaller": "Esta versão não contém instalador ou checksum."
+  "update.noinstaller": "Esta versão não contém instalador ou checksum.",
+  "ui.pin": "Manter este incidente (nunca é excluído automaticamente)",
+  "ui.unpin": "Deixar de manter este incidente",
+  "session.usual.worse": "Pior que o normal",
+  "session.usual.better": "Melhor que o normal",
+  "session.usual.same": "Como de costume",
+  "session.usual.detail": "Normalmente {0} fps · 1 % low {1} · {2} engasgos por hora (últimas {3} sessões)"
 }

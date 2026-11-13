@@ -2,6 +2,31 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+Second security review and new features, see [PROJECT_AUDIT.md](PROJECT_AUDIT.md).
+
+### Added
+
+- *Keep* an incident with the pin in its report: kept incidents are never deleted to make room for new ones.
+- Sessions are compared with your usual for the same game: *worse than usual*, *as usual* or *better than usual*, with
+  the usual fps, 1 % low and hitches per hour from up to ten earlier sessions.
+- The overview shows the incidents of the last seven days as one bar per day.
+
+### Changed
+
+- Category colours can be told apart, also with a colour-vision deficiency, and have their own steps for the light and
+  the dark theme. GPU and memory used to look the same.
+
+### Security
+
+- The elevated helper no longer reads the settings file before it starts.
+- WhyLag checks that the helper's pipe is served by the helper it started.
+- The update installer and PresentMon stay open for reading from the checksum until they run, so the checked file
+  cannot be swapped in between.
+- AI answers that contain links are removed, so text from program names or events can never become a link to open.
+- The PresentMon download has a size limit; the Inno Setup version used for releases is pinned.
+
 ## [0.1.4] - 2026-11-01
 
 Result of a full review, see [PROJECT_AUDIT.md](PROJECT_AUDIT.md).

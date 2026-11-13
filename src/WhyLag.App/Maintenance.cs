@@ -62,8 +62,12 @@ internal static class UpdateChecker
         }
     }
 
-    /// <summary>Downloads the installer and verifies its checksum. Throws <see cref="InvalidDataException"/> on a mismatch.</summary>
-    public static async Task<string> DownloadAsync(ReleaseInfo release, IProgress<int> progress, CancellationToken ct = default)
+    /// <summary>
+    /// Downloads the installer and verifies its checksum. Throws <see cref="InvalidDataException"/> on a mismatch.
+    /// The returned stream keeps the file open for reading only: until it is disposed, no other program can change
+    /// or replace what was checked. Dispose it after the installer was started.
+    /// </summary>
+    public static async Task<FileStream> DownloadAsync(ReleaseInfo release, IProgress<int> progress, CancellationToken ct = default)
     {
         if (release.SetupUrl is null || release.SetupName is null || release.ChecksumsUrl is null)
             throw new InvalidDataException(Core.Localization.Loc.T("update.noinstaller"));
@@ -94,12 +98,14 @@ internal static class UpdateChecker
             }
         }
 
-        if (Updates.HashFile(path) != expected)
+        var verified = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (Updates.Hash(verified) != expected)
         {
+            verified.Dispose();
             File.Delete(path);
             throw new InvalidDataException(Core.Localization.Loc.T("update.badhash"));
         }
-        return path;
+        return verified;
     }
 
     /// <summary>
@@ -153,7 +159,7 @@ internal static class BugReport
 
         // Settings without the Ollama address, which may contain a host name.
         var copy = JsonNode.Parse(JsonSerializer.Serialize(settings, Json.Options))!;
-        copy["ai"]!["endpoint"] = settings.Ai.Endpoint.Contains("127.0.0.1") || settings.Ai.Endpoint.Contains("localhost") ? "local" : "remote";
+        copy["ai"]!["endpoint"] = Uri.TryCreate(settings.Ai.Endpoint, UriKind.Absolute, out var endpoint) && endpoint.IsLoopback ? "local" : "remote";
         copy["window"] = null;
         Add("settings.json", copy.ToJsonString(Json.Options));
 

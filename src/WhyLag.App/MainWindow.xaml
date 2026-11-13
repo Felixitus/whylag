@@ -151,8 +151,8 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="2.4*"/>
+                                    <ColumnDefinition Width="1.5*"/>
+                                    <ColumnDefinition Width="2.1*"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Margin="18,12">
                                     <TextBlock Text="{local:Tr ui.today.count}" Style="{StaticResource Caption}"/>
@@ -165,10 +165,14 @@
                                     </StackPanel>
                                 </Border>
                                 <Border Grid.Column="2" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
-                                    <StackPanel Margin="18,12">
-                                        <TextBlock Text="{local:Tr ui.today.weeklabel}" Style="{StaticResource Caption}"/>
-                                        <TextBlock x:Name="TodayWeek" Style="{StaticResource Metric}" Margin="0,2,0,0"/>
-                                    </StackPanel>
+                                    <DockPanel Margin="18,12">
+                                        <local:BarChart x:Name="WeekChart" DockPanel.Dock="Right" Width="112" Height="44" Margin="12,0,0,0" VerticalAlignment="Bottom"
+                                                        AutomationProperties.Name="{local:Tr ui.today.weeklabel}"/>
+                                        <StackPanel>
+                                            <TextBlock Text="{local:Tr ui.today.weeklabel}" Style="{StaticResource Caption}"/>
+                                            <TextBlock x:Name="TodayWeek" Style="{StaticResource Metric}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </DockPanel>
                                 </Border>
                                 <Border Grid.Column="3" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
                                     <StackPanel Margin="18,12" VerticalAlignment="Center">
@@ -292,6 +296,8 @@
                                                     <DockPanel Margin="0,2,0,0">
                                                         <TextBlock DockPanel.Dock="Right" Text="{Binding Time}" Style="{StaticResource Overline}" FontWeight="Normal"
                                                                    Typography.NumeralAlignment="Tabular" Margin="8,0,0,0"/>
+                                                        <TextBlock DockPanel.Dock="Right" Text="&#xE840;" Style="{StaticResource Icon}" FontSize="10" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" Visibility="{Binding PinVisibility}"/>
                                                         <TextBlock Text="{Binding Detail}" Style="{StaticResource Overline}" FontWeight="Normal" TextTrimming="CharacterEllipsis"/>
                                                     </DockPanel>
                                                 </StackPanel>
@@ -318,6 +324,9 @@
                                     <Button x:Name="IgnoreAppButton" Style="{StaticResource GhostButton}" Click="IgnoreApp_Click" Visibility="Collapsed" AutomationProperties.Name="{local:Tr ui.ignoreapp.short}">
                                         <Button.ToolTip><TextBlock x:Name="IgnoreAppText"/></Button.ToolTip>
                                         <TextBlock Text="&#xE7BA;" Style="{StaticResource Icon}" FontSize="15"/>
+                                    </Button>
+                                    <Button x:Name="PinButton" Style="{StaticResource GhostButton}" Click="Pin_Click">
+                                        <TextBlock x:Name="PinIcon" Text="&#xE718;" Style="{StaticResource Icon}" FontSize="15"/>
                                     </Button>
                                     <Button Style="{StaticResource GhostButton}" Click="Copy_Click" ToolTip="{local:Tr ui.copy}" AutomationProperties.Name="{local:Tr ui.copy}">
                                         <TextBlock Text="&#xE8C8;" Style="{StaticResource Icon}" FontSize="15"/>
@@ -646,6 +655,13 @@
                                                         <TextBlock Text="{Binding Title}" Style="{StaticResource Body}" FontWeight="SemiBold"/>
                                                         <TextBlock Text="{Binding When}" Style="{StaticResource Caption}"/>
                                                         <TextBlock Text="{Binding Causes}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding VerdictVisibility}">
+                                                            <TextBlock Text="{Binding VerdictIcon}" Style="{StaticResource Icon}" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                                       Foreground="{Binding VerdictBrush, Converter={StaticResource ResourceBrush}}"/>
+                                                            <TextBlock Text="{Binding Verdict}" Style="{StaticResource Caption}" FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,10,0"/>
+                                                            <TextBlock Text="{Binding Usual}" Style="{StaticResource Caption}"/>
+                                                        </StackPanel>
                                                     </StackPanel>
                                                     <TextBlock Grid.Column="1" Text="{Binding Fps}" Style="{StaticResource Body}" TextAlignment="Right"/>
                                                     <TextBlock Grid.Column="2" Text="{Binding Low}" Style="{StaticResource Body}" TextAlignment="Right"/>

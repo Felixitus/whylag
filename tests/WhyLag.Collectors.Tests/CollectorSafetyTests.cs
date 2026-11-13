@@ -115,3 +115,53 @@ public class CounterParsingTests
     [InlineData("other")]
     public void Odd_instances_are_skipped(string instance) => Assert.Null(PerformanceSource.ParseGpuInstance(instance));
 }
+
+public class VerifiedFileTests
+{
+    [Fact]
+    public void Pipe_served_by_another_process_is_refused()
+    {
+        var name = $"WhyLag.Test.{Guid.NewGuid():N}";
+        using var server = new System.IO.Pipes.NamedPipeServerStream(name, System.IO.Pipes.PipeDirection.Out);
+        using var client = new System.IO.Pipes.NamedPipeClientStream(".", name, System.IO.Pipes.PipeDirection.In);
+        client.Connect(5000);
+        server.WaitForConnection();
+
+        using var self = System.Diagnostics.Process.GetCurrentProcess();
+        using var other = System.Diagnostics.Process.GetProcessById(4); // the System process: certainly not this pipe's server
+        Assert.True(LatencyHelperSource.IsServedBy(client, self));
+        Assert.False(LatencyHelperSource.IsServedBy(client, other));
+        Assert.True(LatencyHelperSource.IsServedBy(client, null));
+    }
+
+    [Fact]
+    public void A_file_of_another_content_is_not_opened()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "something else");
+            Assert.Null(PresentMonLocator.OpenGenuine(path));
+            File.WriteAllText(path, "can still be written: nothing was kept open");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void A_checked_file_cannot_be_replaced_while_it_is_held()
+    {
+        var copy = Path.Combine(Directory.CreateTempSubdirectory("whylag-test").FullName, "tool.exe");
+        File.WriteAllText(copy, "checked content");
+        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(copy)));
+        using (PresentMonLocator.OpenVerified(copy, hash) ?? throw new InvalidOperationException("file not accepted"))
+        {
+            Assert.Throws<IOException>(() => File.WriteAllText(copy, "replaced"));
+            Assert.Throws<IOException>(() => File.Delete(copy));
+            using var reader = File.Open(copy, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete); // what starting it needs
+        }
+        File.Delete(copy);
+    }
+}

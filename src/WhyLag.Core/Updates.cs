@@ -69,6 +69,13 @@ public static partial class Updates
     public static string HashFile(string path)
     {
         using var stream = File.OpenRead(path);
+        return Hash(stream);
+    }
+
+    /// <summary>SHA-256 (lower case) of a stream from its start.</summary>
+    public static string Hash(Stream stream)
+    {
+        stream.Position = 0;
         return Convert.ToHexStringLower(SHA256.HashData(stream));
     }
 

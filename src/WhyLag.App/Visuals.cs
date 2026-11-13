@@ -6,22 +6,40 @@ using WhyLag.Core;
 
 namespace WhyLag.App;
 
-/// <summary>One color per finding category, used for stripes, chips and chart lanes.</summary>
+/// <summary>
+/// One color per finding category, used for dots, chips and chart lanes. Eight hues that stay apart for people with
+/// colour-vision deficiencies, each with a step for the dark and the light surface; "background" is a neutral grey.
+/// Colour is never the only sign: every mark has its label next to it.
+/// </summary>
 internal static class Palette
 {
-    public static Color For(FindingCategory category) => category switch
-    {
-        FindingCategory.Cpu => Color.FromRgb(59, 130, 246),
-        FindingCategory.Disk => Color.FromRgb(245, 158, 11),
-        FindingCategory.Memory => Color.FromRgb(168, 85, 247),
-        FindingCategory.Gpu => Color.FromRgb(139, 92, 246),
-        FindingCategory.Network => Color.FromRgb(20, 184, 166),
-        FindingCategory.System => Color.FromRgb(239, 68, 68),
-        FindingCategory.Background => Color.FromRgb(100, 116, 139),
-        FindingCategory.Events => Color.FromRgb(249, 115, 22),
-        FindingCategory.Frames => Color.FromRgb(236, 72, 153),
-        _ => Color.FromRgb(100, 116, 139),
-    };
+    public static Color For(FindingCategory category) => Theme.IsDark
+        ? category switch
+        {
+            FindingCategory.Cpu => Rgb(0x3987E5),
+            FindingCategory.Events => Rgb(0xD95926),
+            FindingCategory.Network => Rgb(0x199E70),
+            FindingCategory.Disk => Rgb(0xC98500),
+            FindingCategory.Frames => Rgb(0xD55181),
+            FindingCategory.Gpu => Rgb(0x2E9E2E),
+            FindingCategory.Memory => Rgb(0x9085E9),
+            FindingCategory.System => Rgb(0xE66767),
+            _ => Rgb(0x7C8798),
+        }
+        : category switch
+        {
+            FindingCategory.Cpu => Rgb(0x2A78D6),
+            FindingCategory.Events => Rgb(0xEB6834),
+            FindingCategory.Network => Rgb(0x1BAF7A),
+            FindingCategory.Disk => Rgb(0xEDA100),
+            FindingCategory.Frames => Rgb(0xE87BA4),
+            FindingCategory.Gpu => Rgb(0x008300),
+            FindingCategory.Memory => Rgb(0x6250D6),
+            FindingCategory.System => Rgb(0xE34948),
+            _ => Rgb(0x64748B),
+        };
+
+    private static Color Rgb(int hex) => Color.FromRgb((byte)(hex >> 16), (byte)(hex >> 8), (byte)hex);
 
     public static SolidColorBrush Brush(Color color, double opacity = 1)
     {
@@ -40,6 +58,15 @@ public sealed class CategoryBrushConverter : IValueConverter
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         value is FindingCategory c ? Palette.Brush(Palette.For(c), Opacity) : Palette.Brush(Color.FromRgb(100, 116, 139), Opacity);
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
+/// <summary>Maps the key of a theme brush (e.g. "SystemFillColorCriticalBrush") to that brush.</summary>
+public sealed class ResourceBrushConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is string key && Application.Current.TryFindResource(key) is Brush brush ? brush : Brushes.Gray;
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }

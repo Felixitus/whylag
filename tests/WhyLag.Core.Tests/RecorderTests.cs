@@ -285,3 +285,93 @@ public class ReportSafetyTests
     public void Provider_report_without_moments_says_so() =>
         Assert.Contains(Localization.Loc.T("provider.none"), ProviderReport.Markdown([], TestData.Start));
 }
+
+public class PinTests
+{
+    private static IncidentStore StoreWith(params string[] ids)
+    {
+        var store = new IncidentStore(Directory.CreateTempSubdirectory("whylag-test").FullName);
+        foreach (var id in ids) store.Save(new Incident { Id = id, TriggeredAt = TestData.Start });
+        return store;
+    }
+
+    [Fact]
+    public void Pinned_incidents_survive_pruning()
+    {
+        var store = StoreWith("20260101-100000-automatic", "20260102-100000-hotkey", "20260103-100000-automatic", "20260104-100000-automatic");
+        store.SetPinned("20260101-100000-automatic", true);
+
+        store.Prune(2); // two must go: the automatic ones first, but never the pinned one
+
+        Assert.Equal(["20260102-100000-hotkey", "20260101-100000-automatic"], store.ListIds());
+    }
+
+    [Fact]
+    public void Pin_can_be_removed_and_goes_with_the_incident()
+    {
+        var store = StoreWith("20260101-100000-hotkey", "20260102-100000-hotkey");
+        store.SetPinned("20260101-100000-hotkey", true);
+        store.SetPinned("20260102-100000-hotkey", true);
+        store.SetPinned("20260102-100000-hotkey", false);
+        Assert.Equal(["20260101-100000-hotkey"], store.Pinned());
+
+        store.Delete("20260101-100000-hotkey");
+        Assert.Empty(store.Pinned());
+        Assert.Equal(["20260102-100000-hotkey"], store.ListIds());
+    }
+
+    [Fact]
+    public void Pin_list_ignores_anything_that_is_not_an_incident_id()
+    {
+        var store = StoreWith("20260101-100000-hotkey");
+        File.WriteAllLines(Path.Combine(store.Directory, "pinned.txt"), [@"..\..\other", "20260101-100000-hotkey", ""]);
+        Assert.Equal(["20260101-100000-hotkey"], store.Pinned());
+        store.SetPinned(@"..\evil", true);
+        Assert.Equal(["20260101-100000-hotkey"], store.Pinned());
+    }
+}
+
+public class SessionBaselineTests
+{
+    private static GameSession Session(int day, double fps, double low, int hitches, string app = "game") => new()
+    {
+        Id = $"{day}",
+        App = app,
+        Start = TestData.Start.AddDays(day),
+        End = TestData.Start.AddDays(day).AddHours(1),
+        AverageFps = fps,
+        LowFps = low,
+        Hitches = hitches,
+    };
+
+    private static readonly GameSession[] History = [Session(1, 200, 100, 2), Session(2, 210, 96, 3), Session(3, 190, 104, 2), Session(1, 60, 30, 20, "other")];
+
+    private static SessionVerdict Verdict(GameSession s) => SessionBaseline.Compare(s, [.. History, s]).Verdict;
+
+    [Fact]
+    public void Needs_three_earlier_sessions_of_the_same_game()
+    {
+        Assert.Equal(SessionVerdict.NoHistory, SessionBaseline.Compare(History[2], History).Verdict);
+        Assert.Equal(SessionVerdict.NoHistory, Verdict(Session(5, 60, 30, 20, "other")));
+    }
+
+    [Fact]
+    public void Compares_with_the_medians_of_the_same_game()
+    {
+        var usual = SessionBaseline.Compare(Session(5, 200, 100, 2), History);
+        Assert.Equal((3, 200, 100, 2), (usual.Earlier, usual.UsualFps, usual.UsualLowFps, usual.UsualHitchesPerHour));
+        Assert.Equal(SessionVerdict.Usual, usual.Verdict);
+    }
+
+    [Theory]
+    [InlineData(170, 100, 2)] // average fps down
+    [InlineData(200, 70, 2)] // 1 % low down
+    [InlineData(200, 100, 9)] // many more hitches
+    public void Worse(double fps, double low, int hitches) => Assert.Equal(SessionVerdict.Worse, Verdict(Session(5, fps, low, hitches)));
+
+    [Fact]
+    public void Better() => Assert.Equal(SessionVerdict.Better, Verdict(Session(5, 240, 120, 1)));
+
+    [Fact]
+    public void More_fps_with_many_more_hitches_is_not_better() => Assert.Equal(SessionVerdict.Worse, Verdict(Session(5, 240, 120, 12)));
+}

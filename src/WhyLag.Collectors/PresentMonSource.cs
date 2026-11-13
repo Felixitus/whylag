@@ -23,12 +23,13 @@ public sealed class PresentMonSource : IMetricSource
 
     private readonly ConcurrentQueue<(int Pid, string App, double Ms)> _frames = new();
     private readonly List<string> _warnings = new();
-    private readonly string? _exe;
+    private string? _exe;
     private Process? _process;
     private JobObject? _job;
     private int _restarts;
     private volatile string? _lastError;
     private bool _disposed;
+    private FileStream? _checked;
 
     public PresentMonSource(string? exePath = null) => _exe = exePath ?? PresentMonLocator.Find();
 
@@ -40,8 +41,11 @@ public sealed class PresentMonSource : IMetricSource
 
     public void Start()
     {
-        if (_exe is null)
+        // Kept open while WhyLag runs: PresentMon is started more than once, and the file must stay the checked one.
+        _checked = _exe is null ? null : PresentMonLocator.OpenGenuine(_exe);
+        if (_checked is null)
         {
+            _exe = null;
             _warnings.Add(T("warn.presentmon.missing"));
             return;
         }
@@ -147,6 +151,7 @@ public sealed class PresentMonSource : IMetricSource
         _process?.Dispose();
         _job?.Dispose(); // also ends PresentMon if WhyLag crashes, via kill-on-close
         StopTraceSession();
+        _checked?.Dispose();
     }
 
     /// <summary>

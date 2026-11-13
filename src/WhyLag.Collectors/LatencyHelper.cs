@@ -211,6 +211,12 @@ public sealed class LatencyHelperSource : IMetricSource
             {
                 using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.In, PipeOptions.Asynchronous);
                 await pipe.ConnectAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+                if (!IsServedBy(pipe, _helper))
+                {
+                    // Another program created a pipe with this name first. Its numbers are not measurements.
+                    _error = T("err.helper.stopped");
+                    return;
+                }
                 using var reader = new StreamReader(pipe);
                 while (await reader.ReadLineAsync(ct).ConfigureAwait(false) is { } line)
                     _latest = JsonSerializer.Deserialize<LatencySecond>(line, Json.Compact);
@@ -233,6 +239,26 @@ public sealed class LatencyHelperSource : IMetricSource
             }
         }
     }
+
+    /// <summary>True when the other end of the pipe is the helper process WhyLag started (or that cannot be told).</summary>
+    internal static bool IsServedBy(PipeStream pipe, Process? helper)
+    {
+        if (helper is null) return true;
+        int expected;
+        try
+        {
+            expected = helper.Id;
+        }
+        catch (InvalidOperationException)
+        {
+            return true;
+        }
+        return !GetNamedPipeServerProcessId(pipe.SafePipeHandle, out var server) || server == (uint)expected;
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool GetNamedPipeServerProcessId(Microsoft.Win32.SafeHandles.SafePipeHandle pipe, out uint serverProcessId);
 
     public void Collect(Tick tick)
     {

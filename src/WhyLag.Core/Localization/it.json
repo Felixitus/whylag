@@ -586,5 +586,11 @@
   "provider.col.count": "Momenti",
   "provider.details": "Dettagli",
   "err.hotkey.busy": "La scorciatoia {0} è già usata da un altro programma. Scegline un'altra nelle impostazioni.",
-  "update.noinstaller": "Questa versione non contiene il programma di installazione o il checksum."
+  "update.noinstaller": "Questa versione non contiene il programma di installazione o il checksum.",
+  "ui.pin": "Conserva questo incidente (mai eliminato automaticamente)",
+  "ui.unpin": "Non conservare più questo incidente",
+  "session.usual.worse": "Peggio del solito",
+  "session.usual.better": "Meglio del solito",
+  "session.usual.same": "Come al solito",
+  "session.usual.detail": "Di solito {0} fps · 1 % minimo {1} · {2} scatti all’ora (ultime {3} sessioni)"
 }

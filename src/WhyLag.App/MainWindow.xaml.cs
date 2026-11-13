@@ -14,8 +14,10 @@ namespace WhyLag.App;
 
 /// <summary>One entry of the incident list. <see cref="Day"/> groups the list ("Today", "Yesterday", a date).</summary>
 public sealed record IncidentListItem(string Id, string Time, string Trigger, string Headline, FindingCategory? Category, string CategoryText,
-    string App, string Detail, DateTime Local, bool Automatic, string Day)
+    string App, string Detail, DateTime Local, bool Automatic, string Day, bool Pinned)
 {
+    public Visibility PinVisibility => Pinned ? Visibility.Visible : Visibility.Collapsed;
+
     /// <summary>What screen readers announce for the entry.</summary>
     public override string ToString() => $"{Time} · {CategoryText} · {Headline}";
 }
@@ -32,7 +34,11 @@ public sealed record KpiView(string Label, string Value, string Unit, string Not
 
 public sealed record AiItemView(string Header, string Evidence, string Text, List<string> Steps, FindingCategory? Category);
 
-public sealed record SessionView(string Title, string When, string Fps, string Low, string Hitches, string Incidents, string Load, string Causes);
+public sealed record SessionView(string Title, string When, string Fps, string Low, string Hitches, string Incidents, string Load, string Causes,
+    string Verdict, string VerdictIcon, string VerdictBrush, string Usual)
+{
+    public Visibility VerdictVisibility => Verdict.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+}
 
 public sealed record ChangeView(string Title, string Detail);
 
@@ -194,8 +200,9 @@ public partial class MainWindow : Window
         NoIncidents.Visibility = Visibility.Visible;
         var incidents = await Task.Run(Host.Store.LoadSummaries);
         if (App.Instance is not { IsExiting: false }) return;
+        var pinned = Host.Store.Pinned();
         _items.Clear();
-        foreach (var incident in incidents) _items.Add(ToItem(incident));
+        foreach (var incident in incidents) _items.Add(ToItem(incident, pinned.Contains(incident.Id)));
         _listDay = DateTime.Today;
         UpdateCount();
         RefreshStatus();
@@ -232,6 +239,12 @@ public partial class MainWindow : Window
         TodayCount.Text = today.Count.ToString(Culture);
         TodayAuto.Text = today.Count(i => i.Automatic).ToString(Culture);
         TodayWeek.Text = real.Count(i => i.Local >= DateTime.Today.AddDays(-6)).ToString(Culture);
+        // One bar per day, today on the right.
+        var days = Enumerable.Range(0, 7).Select(d => DateTime.Today.AddDays(d - 6)).ToList();
+        var perDay = days.Select(d => real.Count(i => i.Local.Date == d)).ToArray();
+        WeekChart.Values = perDay;
+        WeekChart.Labels = days.Select(d => Culture.DateTimeFormat.GetShortestDayName(d.DayOfWeek)).ToArray();
+        WeekChart.ToolTip = string.Join("\n", days.Select((d, n) => $"{d.ToString("ddd d.", Culture)}  {perDay[n]}"));
         TodayText.Text = top is not null ? $"{top.Key} ({top.Count()}×)" : T("ui.today.none");
         RecentList.ItemsSource = _items.Take(5).ToList();
         RecentCard.Visibility = RecentHeader.Visibility = _items.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -249,7 +262,7 @@ public partial class MainWindow : Window
                                     || item.App.Contains(text, StringComparison.CurrentCultureIgnoreCase));
     }
 
-    private static IncidentListItem ToItem(Incident i)
+    private static IncidentListItem ToItem(Incident i, bool pinned = false)
     {
         var local = i.TriggeredAt.ToLocalTime();
         var trigger = i.Id.EndsWith("-demo", StringComparison.Ordinal) ? T("trigger.short.demo") : T($"trigger.short.{i.Trigger}");
@@ -258,7 +271,7 @@ public partial class MainWindow : Window
         var flags = (i.Explanation is null ? "" : " · AI") + (string.IsNullOrWhiteSpace(i.Note) ? "" : " · ✎");
         return new IncidentListItem(i.Id, local.ToString("HH:mm:ss", Culture), trigger, top?.Title ?? T("report.none.title"), top?.Category,
             top is null ? T("ui.result") : Palette.Label(top.Category), app, (app.Length > 0 ? $"{app} · {trigger}" : trigger) + flags,
-            local.DateTime, i.Trigger == TriggerKind.Automatic, DayLabel(local.DateTime));
+            local.DateTime, i.Trigger == TriggerKind.Automatic, DayLabel(local.DateTime), pinned);
     }
 
     private static string DayLabel(DateTime local) =>
@@ -285,6 +298,7 @@ public partial class MainWindow : Window
 
     private void IncidentList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_replacing) return;
         if (_current is not null) NoteBox_LostFocus(this, new RoutedEventArgs()); // keep an unsaved note
         _explainCts?.Cancel();
         var count = IncidentList.SelectedItems.Count;
@@ -440,12 +454,27 @@ public partial class MainWindow : Window
     {
         ShowView(SessionsView);
         var sessions = Host.Sessions.LoadAll();
-        SessionList.ItemsSource = sessions.Select(s => new SessionView(
-            T("session.title", s.App, App.Duration(s.Duration)),
-            s.Start.ToLocalTime().ToString("g", Culture),
-            s.AverageFps.ToString("0", Culture), s.LowFps.ToString("0", Culture), s.Hitches.ToString(Culture),
-            s.IncidentIds.Count.ToString(Culture), $"{s.AverageCpu:0} / {s.AverageGpu:0} %",
-            s.Causes.Count == 0 ? T("session.nocauses") : T("session.causes", string.Join(" · ", s.Causes.Select(c => $"{c.Title} ({c.Count}×)"))))).ToList();
+        SessionList.ItemsSource = sessions.Select(s =>
+        {
+            var usual = SessionBaseline.Compare(s, sessions);
+            // Status colours always come with an icon and words.
+            var (verdict, icon, brush) = usual.Verdict switch
+            {
+                SessionVerdict.Worse => (T("session.usual.worse"), "\uE74B", "SystemFillColorCriticalBrush"),
+                SessionVerdict.Better => (T("session.usual.better"), "\uE74A", "SystemFillColorSuccessBrush"),
+                SessionVerdict.Usual => (T("session.usual.same"), "\uE73E", "TextFillColorSecondaryBrush"),
+                _ => ("", "", "TextFillColorSecondaryBrush"),
+            };
+            return new SessionView(
+                T("session.title", s.App, App.Duration(s.Duration)),
+                s.Start.ToLocalTime().ToString("g", Culture),
+                s.AverageFps.ToString("0", Culture), s.LowFps.ToString("0", Culture), s.Hitches.ToString(Culture),
+                s.IncidentIds.Count.ToString(Culture), $"{s.AverageCpu:0} / {s.AverageGpu:0} %",
+                s.Causes.Count == 0 ? T("session.nocauses") : T("session.causes", string.Join(" · ", s.Causes.Select(c => $"{c.Title} ({c.Count}×)"))),
+                verdict, icon, brush,
+                usual.Verdict == SessionVerdict.NoHistory ? "" : T("session.usual.detail", usual.UsualFps.ToString("0", Culture),
+                    usual.UsualLowFps.ToString("0", Culture), usual.UsualHitchesPerHour.ToString("0.#", Culture), usual.Earlier));
+        }).ToList();
         var running = Host.Recorder?.CurrentSessionApp;
         SessionStatus.Text = running is not null ? T("session.running", running) : sessions.Count == 0 ? T("session.none") : "";
         SessionStatus.Visibility = SessionStatus.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -484,6 +513,7 @@ public partial class MainWindow : Window
         HeroChipText.Text = top is null ? T("ui.hero.none") : T("ui.hero.likely", Palette.Label(top.Category));
         ReportWhen.Text = incident.TriggeredAt.ToLocalTime().ToString("D", Culture) + " · " + incident.TriggeredAt.ToLocalTime().ToString("HH:mm:ss", Culture);
         ReportTitle.Text = top?.Title ?? T("report.none.title");
+        ShowPinState(Host.Store.Pinned().Contains(incident.Id));
 
         var fg = incident.Ticks.LastOrDefault(t => t.ForegroundProcess is not null)?.ForegroundProcess;
         ReportSubtitle.Text = ReportBuilder.TriggerText(incident)
@@ -693,6 +723,33 @@ public partial class MainWindow : Window
         Directory.CreateDirectory(AppPaths.IncidentsDir);
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{AppPaths.IncidentsDir}\"") { UseShellExecute = true });
     }
+
+    private void ShowPinState(bool pinned)
+    {
+        PinIcon.Text = pinned ? "\uE840" : "\uE718";
+        PinIcon.SetResourceReference(TextBlock.ForegroundProperty, pinned ? "AccentTextFillColorPrimaryBrush" : "TextFillColorSecondaryBrush");
+        PinButton.ToolTip = T(pinned ? "ui.unpin" : "ui.pin");
+        System.Windows.Automation.AutomationProperties.SetName(PinButton, T(pinned ? "ui.unpin" : "ui.pin"));
+    }
+
+    /// <summary>Keeps the open incident: pinned incidents are never deleted to make room for new ones.</summary>
+    private void Pin_Click(object sender, RoutedEventArgs e)
+    {
+        if (_current is not { } incident) return;
+        var pinned = !Host.Store.Pinned().Contains(incident.Id);
+        Host.Store.SetPinned(incident.Id, pinned);
+        ShowPinState(pinned);
+        var index = _items.ToList().FindIndex(i => i.Id == incident.Id);
+        if (index < 0) return;
+        // The list entry is replaced; the report that is open stays as it is.
+        _replacing = true;
+        var selected = IncidentList.SelectedItem is IncidentListItem s && s.Id == incident.Id;
+        _items[index] = _items[index] with { Pinned = pinned };
+        if (selected) IncidentList.SelectedItem = _items[index];
+        _replacing = false;
+    }
+
+    private bool _replacing;
 
     private void Delete_Click(object sender, RoutedEventArgs e)
     {

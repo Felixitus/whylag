@@ -2,6 +2,23 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+Result of a full code review.
+
+### Fixed
+
+- When two or more sources failed at once, only one of them was tried again every minute; the others stayed off
+  until WhyLag restarted. Now every failed source is tried again.
+- Automatic detection kept watching while a capture was pending, instead of missing ten seconds after each spike.
+- A program could be recorded under the name of another one that had the same process id earlier.
+- Changed rule files in the rules folder apply without a restart; a rule that fails is written to the log.
+- Values in a hand-edited `config.json` are brought into the allowed range when WhyLag starts.
+- A broken HWiNFO shared-memory block no longer marks the temperature source as failed.
+- `whylag-cli record` no longer stops the frame-time recording of the running app; `whylag-cli list` is much faster
+  and shows the same cause as the app.
+- Saving a report or the provider report shows a message when the file cannot be written.
+
 ## [0.1.5] - 2026-11-13
 
 Second security review and new features, see [PROJECT_AUDIT.md](PROJECT_AUDIT.md).

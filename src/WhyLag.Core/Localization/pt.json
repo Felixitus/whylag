@@ -606,5 +606,6 @@
   "ui.marker.remove": "Remover marcador",
   "ui.feedback.right": "Esta foi a causa",
   "ui.feedback.wrong": "Esta não foi a causa",
-  "ui.ok": "OK"
+  "ui.ok": "OK",
+  "ui.savefailed": "Não foi possível salvar o arquivo: {0}"
 }

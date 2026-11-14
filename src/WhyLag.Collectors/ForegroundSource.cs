@@ -12,7 +12,12 @@ namespace WhyLag.Collectors;
 public sealed class ForegroundSource : IMetricSource
 {
     private static readonly HashSet<string> ShellClasses = new(StringComparer.Ordinal) { "Progman", "WorkerW", "Shell_TrayWnd" };
-    private readonly Dictionary<uint, string> _names = new();
+    /// <summary>
+    /// Process names by id. Windows hands out ids again after a process ended, so an entry is looked up again after a
+    /// short while; otherwise a game could be recorded under the name of a program that had its id days ago.
+    /// </summary>
+    private readonly Dictionary<uint, (string Name, DateTime At)> _names = new();
+    private static readonly TimeSpan NameLifetime = TimeSpan.FromSeconds(30);
 
     public string Name => WhyLag.Core.Localization.Loc.T("source.foreground");
 
@@ -30,7 +35,9 @@ public sealed class ForegroundSource : IMetricSource
         GetWindowThreadProcessId(hwnd, out var pid);
         if (pid == 0) return;
 
-        if (!_names.TryGetValue(pid, out var name))
+        string name;
+        if (_names.TryGetValue(pid, out var known) && DateTime.UtcNow - known.At < NameLifetime) name = known.Name;
+        else
         {
             try
             {
@@ -42,7 +49,7 @@ public sealed class ForegroundSource : IMetricSource
                 return; // process already exited
             }
             if (_names.Count > 500) _names.Clear();
-            _names[pid] = name;
+            _names[pid] = (name, DateTime.UtcNow);
         }
         tick.ForegroundProcess = name;
         tick.ForegroundFullscreen = IsFullscreen(hwnd);
@@ -51,8 +58,7 @@ public sealed class ForegroundSource : IMetricSource
     internal static bool IsFullscreen(IntPtr hwnd)
     {
         var cls = new StringBuilder(64);
-        GetClassNameW(hwnd, cls, cls.Capacity);
-        if (ShellClasses.Contains(cls.ToString())) return false; // the desktop (and wallpaper engines) is not a game
+        if (GetClassNameW(hwnd, cls, cls.Capacity) > 0 && ShellClasses.Contains(cls.ToString())) return false; // the desktop (and wallpaper engines) is not a game
         if (!GetWindowRect(hwnd, out var window)) return false;
         var monitor = MonitorFromWindow(hwnd, 2 /* MONITOR_DEFAULTTONEAREST */);
         var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };

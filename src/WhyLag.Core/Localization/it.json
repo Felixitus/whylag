@@ -606,5 +606,6 @@
   "ui.marker.remove": "Rimuovi segnalibro",
   "ui.feedback.right": "Questa era la causa",
   "ui.feedback.wrong": "Questa non era la causa",
-  "ui.ok": "OK"
+  "ui.ok": "OK",
+  "ui.savefailed": "Impossibile salvare il file: {0}"
 }

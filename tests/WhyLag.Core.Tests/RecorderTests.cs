@@ -486,3 +486,97 @@ public class MarkerTests
     public void A_marker_is_reported_without_any_incident() =>
         Assert.Single(ChangeAnalyzer.Compare([new Marker("m", TestData.Start, "x").AsChange()], [], TestData.Start.AddDays(1)));
 }
+
+public class ReviewFixTests
+{
+    private sealed class Broken(string name) : IMetricSource
+    {
+        public int Calls { get; private set; }
+        public string Name => name;
+        public void Start() { }
+        public void Dispose() { }
+        public void Collect(Tick tick)
+        {
+            Calls++;
+            throw new InvalidOperationException("broken");
+        }
+    }
+
+    [Fact]
+    public void Every_failed_source_is_tried_again()
+    {
+        Broken a = new("a"), b = new("b"), c = new("c");
+        using var recorder = new Recorder(new WhyLagSettings { AutoDetect = false }, [a, b, c], [], new MachineInfo());
+        for (var i = 0; i < 600; i++) recorder.Record(0, TestData.Start.AddSeconds(i));
+        // five tries at the start, then one per minute
+        Assert.All([a, b, c], s => Assert.InRange(s.Calls, 14, 16));
+    }
+
+    private sealed class ThrowingRule : WhyLag.Core.Rules.IRule
+    {
+        public string Id => "broken.rule";
+        public Finding? Evaluate(WhyLag.Core.Rules.IncidentContext ctx) => throw new InvalidOperationException("boom");
+    }
+
+    private sealed class FineRule : WhyLag.Core.Rules.IRule
+    {
+        public string Id => "fine";
+        public Finding? Evaluate(WhyLag.Core.Rules.IncidentContext ctx) => new() { RuleId = Id, Title = "ok", Confidence = 0.5 };
+    }
+
+    [Fact]
+    public void A_failing_rule_is_reported_and_the_others_still_run()
+    {
+        var errors = new List<Exception>();
+        var ctx = new WhyLag.Core.Rules.IncidentContext([], [], TestData.Start, TriggerKind.Hotkey);
+        var findings = WhyLag.Core.Rules.RuleEngine.Evaluate(ctx, [new ThrowingRule(), new FineRule()], errors.Add);
+        Assert.Equal("ok", Assert.Single(findings).Title);
+        Assert.Contains("broken.rule", Assert.Single(errors).Message);
+    }
+
+    [Fact]
+    public void Rule_folder_stamp_changes_when_a_rule_file_changes()
+    {
+        var dir = Directory.CreateTempSubdirectory("whylag-test").FullName;
+        var empty = WhyLag.Core.Rules.JsonRules.UserStamp(dir);
+        var file = Path.Combine(dir, "mine.json");
+        File.WriteAllText(file, "[]");
+        var one = WhyLag.Core.Rules.JsonRules.UserStamp(dir);
+        File.WriteAllText(file, "[ ]");
+        var changed = WhyLag.Core.Rules.JsonRules.UserStamp(dir);
+        Assert.NotEqual(empty, one);
+        Assert.NotEqual(one, changed);
+        Assert.Equal(changed, WhyLag.Core.Rules.JsonRules.UserStamp(dir));
+        Assert.Equal("", WhyLag.Core.Rules.JsonRules.UserStamp(Path.Combine(dir, "missing")));
+    }
+
+    [Fact]
+    public void Hand_edited_settings_are_brought_into_range()
+    {
+        var s = SettingsStore.Checked(new WhyLagSettings
+        {
+            BufferMinutes = 0,
+            KeepIncidents = 100_000,
+            AutoDetectCooldownSeconds = -5,
+            Hotkey = " ",
+            PingTarget = "not a host!",
+            Theme = "Pink",
+            Notifications = (NotifyMode)42,
+            IgnoredApps = null!,
+            Ai = null!,
+        });
+        var d = new WhyLagSettings();
+        Assert.Equal((1, 1000, 10), (s.BufferMinutes, s.KeepIncidents, s.AutoDetectCooldownSeconds));
+        Assert.Equal((d.Hotkey, d.PingTarget, d.Theme, d.Notifications), (s.Hotkey, s.PingTarget, s.Theme, s.Notifications));
+        Assert.Empty(s.IgnoredApps);
+        Assert.Equal(d.Ai.Endpoint, s.Ai.Endpoint);
+    }
+
+    [Fact]
+    public void Valid_settings_stay_as_they_are()
+    {
+        var s = SettingsStore.Checked(new WhyLagSettings { BufferMinutes = 30, KeepIncidents = 250, PingTarget = "dns.google", Theme = "Dark", IgnoredApps = ["obs64"] });
+        Assert.Equal((30, 250, "dns.google", "Dark"), (s.BufferMinutes, s.KeepIncidents, s.PingTarget, s.Theme));
+        Assert.Equal(["obs64"], s.IgnoredApps);
+    }
+}

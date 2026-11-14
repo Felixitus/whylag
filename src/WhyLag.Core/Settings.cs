@@ -109,13 +109,36 @@ public static class SettingsStore
         try
         {
             if (File.Exists(AppPaths.ConfigFile))
-                return JsonSerializer.Deserialize<WhyLagSettings>(File.ReadAllText(AppPaths.ConfigFile), Json.Options) ?? new();
+                return Checked(JsonSerializer.Deserialize<WhyLagSettings>(File.ReadAllText(AppPaths.ConfigFile), Json.Options) ?? new());
         }
         catch (Exception)
         {
             // A broken config file must not stop the recorder; defaults are safe.
         }
         return new WhyLagSettings();
+    }
+
+    /// <summary>
+    /// Brings values from a hand-edited or old file into the range the settings window allows; anything missing gets
+    /// its default. A typo in the file must not make WhyLag spam incidents or stop recording.
+    /// </summary>
+    internal static WhyLagSettings Checked(WhyLagSettings s)
+    {
+        var defaults = new WhyLagSettings();
+        s.BufferMinutes = Math.Clamp(s.BufferMinutes, 1, 120);
+        s.KeepIncidents = Math.Clamp(s.KeepIncidents, 1, 1000);
+        s.AutoDetectCooldownSeconds = Math.Clamp(s.AutoDetectCooldownSeconds, 10, 3600);
+        if (string.IsNullOrWhiteSpace(s.Hotkey)) s.Hotkey = defaults.Hotkey;
+        if (string.IsNullOrWhiteSpace(s.PingTarget) || Uri.CheckHostName(s.PingTarget.Trim()) == UriHostNameType.Unknown) s.PingTarget = defaults.PingTarget;
+        if (s.Theme is not ("System" or "Light" or "Dark")) s.Theme = defaults.Theme;
+        if (string.IsNullOrWhiteSpace(s.Language)) s.Language = defaults.Language;
+        if (!Enum.IsDefined(s.Notifications)) s.Notifications = defaults.Notifications;
+        s.IgnoredApps ??= [];
+        s.IgnoredApps.RemoveAll(string.IsNullOrWhiteSpace);
+        s.Ai ??= new AiSettings();
+        s.Ai.TimeoutSeconds = Math.Clamp(s.Ai.TimeoutSeconds, 10, 1800);
+        if (string.IsNullOrWhiteSpace(s.Ai.Endpoint)) s.Ai.Endpoint = defaults.Ai.Endpoint;
+        return s;
     }
 
     public static void Save(WhyLagSettings settings)

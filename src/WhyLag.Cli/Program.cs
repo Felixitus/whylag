@@ -34,7 +34,7 @@ async Task<int> Record(int seconds, bool noPing, bool explain)
 {
     if (noPing) settings.PingEnabled = false;
     var machine = HardwareInfo.Machine();
-    var (metrics, events) = DefaultSources.Create(settings, machine);
+    var (metrics, events) = DefaultSources.Create(settings, machine, traceSession: "WhyLag-cli");
     using var recorder = new Recorder(settings, metrics, events, machine, new IncidentStore());
     recorder.IncidentCaptured += i =>
     {
@@ -78,12 +78,8 @@ async Task<int> Record(int seconds, bool noPing, bool explain)
 
 int List()
 {
-    var store = new IncidentStore();
-    foreach (var id in store.ListIds())
-    {
-        var i = store.Load(id);
-        Console.WriteLine($"{id}  {i?.Findings.FirstOrDefault()?.Title ?? "(no findings)"}");
-    }
+    foreach (var i in new IncidentStore().LoadSummaries())
+        Console.WriteLine($"{i.Id}  {ReportBuilder.Top(i)?.Title ?? "(no findings)"}");
     return 0;
 }
 

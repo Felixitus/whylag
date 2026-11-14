@@ -11,10 +11,27 @@ public interface IRule
 
 public static class RuleEngine
 {
-    /// <summary>Rules written in code, the built-in JSON rules and the user's own JSON rules.</summary>
-    public static IReadOnlyList<IRule> DefaultRules => _rules ??= [.. CodeRules, .. JsonRules.BuiltIn, .. JsonRules.LoadUser()];
+    /// <summary>
+    /// Rules written in code, the built-in JSON rules and the user's own JSON rules. The user's rule folder is read
+    /// again when a file in it was added, changed or removed, so edited rules apply without a restart.
+    /// </summary>
+    public static IReadOnlyList<IRule> DefaultRules
+    {
+        get
+        {
+            var stamp = JsonRules.UserStamp();
+            if (_rules is null || stamp != _stamp)
+            {
+                JsonRules.Errors.Clear();
+                _rules = [.. CodeRules, .. JsonRules.BuiltIn, .. JsonRules.LoadUser()];
+                _stamp = stamp;
+            }
+            return _rules;
+        }
+    }
 
     private static IReadOnlyList<IRule>? _rules;
+    private static string? _stamp;
 
     /// <summary>Reads the user's rule folder again on the next evaluation.</summary>
     public static void ReloadUserRules()
@@ -45,8 +62,11 @@ public static class RuleEngine
         new HouseholdTrafficRule(),
     ];
 
-    /// <summary>Runs all rules, ranks the findings and assigns stable ids (F1.., E1..).</summary>
-    public static List<Finding> Evaluate(IncidentContext ctx, IEnumerable<IRule>? rules = null)
+    /// <summary>
+    /// Runs all rules, ranks the findings and assigns stable ids (F1.., E1..). A rule that throws is skipped and
+    /// reported to <paramref name="onError"/>; it never breaks the report.
+    /// </summary>
+    public static List<Finding> Evaluate(IncidentContext ctx, IEnumerable<IRule>? rules = null, Action<Exception>? onError = null)
     {
         var findings = new List<Finding>();
         foreach (var rule in rules ?? DefaultRules)
@@ -55,9 +75,9 @@ public static class RuleEngine
             {
                 if (rule.Evaluate(ctx) is { } finding) findings.Add(finding);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // A broken rule must never break the report; the remaining rules still run.
+                onError?.Invoke(new InvalidOperationException($"Rule '{rule.Id}' failed: {ex.Message}", ex));
             }
         }
 

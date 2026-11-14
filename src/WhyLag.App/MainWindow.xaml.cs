@@ -392,7 +392,22 @@ public partial class MainWindow : Window
         var dialog = new SaveFileDialog { FileName = "whylag-connection-report", Filter = "Markdown|*.md|Text|*.txt" };
         if (dialog.ShowDialog(this) != true) return;
         var text = await Task.Run(() => ProviderReport.Markdown(Host.Store.LoadSummaries(), DateTimeOffset.Now));
-        await File.WriteAllTextAsync(dialog.FileName, text);
+        TrySave(() => File.WriteAllText(dialog.FileName, text));
+    }
+
+    /// <summary>Writes a file the user chose; a full disk or a locked file is shown, not thrown.</summary>
+    private bool TrySave(Action write)
+    {
+        try
+        {
+            write();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, T("ui.savefailed", ex.Message), "WhyLag", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
     }
 
     private void TableFilter_Changed(object sender, EventArgs e)
@@ -850,20 +865,23 @@ public partial class MainWindow : Window
         // One export for both formats: HTML (with timeline, opens in the browser) or Markdown (for forums and issues).
         var dialog = new SaveFileDialog { FileName = $"whylag-{_current.Id}", Filter = "HTML|*.html|Markdown|*.md|Text|*.txt|PNG|*.png" };
         if (dialog.ShowDialog(this) != true) return;
+        var incident = _current;
         if (dialog.FilterIndex == 4)
         {
             if (RenderShareImage() is not { } image) return;
             var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
             encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
-            using var file = File.Create(dialog.FileName);
-            encoder.Save(file);
+            TrySave(() =>
+            {
+                using var file = File.Create(dialog.FileName);
+                encoder.Save(file);
+            });
         }
         else if (dialog.FilterIndex == 1)
         {
-            File.WriteAllText(dialog.FileName, HtmlReport.Build(_current));
-            App.OpenFile(dialog.FileName);
+            if (TrySave(() => File.WriteAllText(dialog.FileName, HtmlReport.Build(incident)))) App.OpenFile(dialog.FileName);
         }
-        else File.WriteAllText(dialog.FileName, ReportBuilder.Markdown(_current, anonymize: true));
+        else TrySave(() => File.WriteAllText(dialog.FileName, ReportBuilder.Markdown(incident, anonymize: true)));
     }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)

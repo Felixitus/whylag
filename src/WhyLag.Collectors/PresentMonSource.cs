@@ -14,7 +14,7 @@ namespace WhyLag.Collectors;
 /// </summary>
 public sealed class PresentMonSource : IMetricSource
 {
-    private const string SessionName = "WhyLag";
+    private readonly string _sessionName;
     private const int MaxRestarts = 3;
     private const int MinFramesPerSecond = 10;
     /// <summary>While nobody collects (recording paused) frames are dropped instead of piling up in memory.</summary>
@@ -31,7 +31,15 @@ public sealed class PresentMonSource : IMetricSource
     private bool _disposed;
     private FileStream? _checked;
 
-    public PresentMonSource(string? exePath = null) => _exe = exePath ?? PresentMonLocator.Find();
+    /// <param name="sessionName">
+    /// Name of the trace session. PresentMon stops an existing session of the same name, so a second recorder (the
+    /// CLI next to the app) needs its own name.
+    /// </param>
+    public PresentMonSource(string? exePath = null, string sessionName = "WhyLag")
+    {
+        _exe = exePath ?? PresentMonLocator.Find();
+        _sessionName = sessionName;
+    }
 
     public string Name => WhyLag.Core.Localization.Loc.T("source.presentmon");
 
@@ -62,7 +70,7 @@ public sealed class PresentMonSource : IMetricSource
             ArgumentList =
             {
                 "--output_stdout", "--no_console_stats", "--v1_metrics", "--no_track_input",
-                "--session_name", SessionName, "--stop_existing_session", "--exclude", "dwm.exe",
+                "--session_name", _sessionName, "--stop_existing_session", "--exclude", "dwm.exe",
             },
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -165,7 +173,7 @@ public sealed class PresentMonSource : IMetricSource
         {
             using var stop = Process.Start(new ProcessStartInfo(_exe)
             {
-                ArgumentList = { "--terminate_existing_session", "--session_name", SessionName },
+                ArgumentList = { "--terminate_existing_session", "--session_name", _sessionName },
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,

@@ -606,5 +606,6 @@
   "ui.marker.remove": "Usuń znacznik",
   "ui.feedback.right": "To była przyczyna",
   "ui.feedback.wrong": "To nie była przyczyna",
-  "ui.ok": "OK"
+  "ui.ok": "OK",
+  "ui.savefailed": "Nie udało się zapisać pliku: {0}"
 }

@@ -606,5 +606,6 @@
   "ui.marker.remove": "Supprimer le repère",
   "ui.feedback.right": "C’était la cause",
   "ui.feedback.wrong": "Ce n’était pas la cause",
-  "ui.ok": "OK"
+  "ui.ok": "OK",
+  "ui.savefailed": "Le fichier n’a pas pu être enregistré : {0}"
 }

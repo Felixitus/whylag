@@ -138,6 +138,23 @@ public static class JsonRules
     public static List<JsonRuleDefinition> Parse(string json) =>
         JsonSerializer.Deserialize<List<JsonRuleDefinition>>(json, Options) ?? [];
 
+    /// <summary>Names, sizes and times of the user's rule files; changes when any of them changes.</summary>
+    public static string UserStamp(string? dir = null)
+    {
+        dir ??= AppPaths.RulesDir;
+        try
+        {
+            if (!Directory.Exists(dir)) return "";
+            return string.Join('|', new DirectoryInfo(dir).EnumerateFiles("*.json")
+                .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(f => $"{f.Name}:{f.Length}:{f.LastWriteTimeUtc.Ticks}"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return "";
+        }
+    }
+
     public static IReadOnlyList<JsonRule> LoadUser(string? dir = null)
     {
         dir ??= AppPaths.RulesDir;

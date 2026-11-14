@@ -33,7 +33,7 @@ public sealed class Recorder : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly Lock _captureLock = new();
     private Task? _loop;
-    private long _retryCounter;
+    private long _tickCounter;
     private SpikeSignal? _pendingAuto;
     private DateTimeOffset _lastAutoCapture = DateTimeOffset.MinValue;
 
@@ -156,10 +156,12 @@ public sealed class Recorder : IDisposable
 
     private void CollectAll(Tick tick)
     {
+        // One counter per second, not per source: every failed source gets its retry in the same second.
+        var retry = ++_tickCounter % RetryFailedAfterTicks == 0;
         foreach (var source in _metricSources)
         {
             _failures.TryGetValue(source, out var failures);
-            if (failures >= MaxConsecutiveFailures && ++_retryCounter % RetryFailedAfterTicks != 0) continue;
+            if (failures >= MaxConsecutiveFailures && !retry) continue;
             try
             {
                 source.Collect(tick);
@@ -176,7 +178,9 @@ public sealed class Recorder : IDisposable
 
     private void HandleAutoDetect(Tick tick)
     {
-        if (_pendingAuto is null && _detector.Feed(tick) is { } signal
+        // The detector sees every second, also while a capture is pending, so its history has no gaps.
+        var signal = _detector.Feed(tick);
+        if (_pendingAuto is null && signal is not null
             && signal.Timestamp - _lastAutoCapture >= TimeSpan.FromSeconds(_settings.AutoDetectCooldownSeconds))
         {
             _pendingAuto = signal;
@@ -229,7 +233,7 @@ public sealed class Recorder : IDisposable
                 Ticks = ticks,
                 Events = events,
                 LongTerm = longTerm,
-                Findings = RuleEngine.Evaluate(ctx),
+                Findings = RuleEngine.Evaluate(ctx, onError: ex => Failed?.Invoke(ex)),
             };
 
             if (_store is not null)

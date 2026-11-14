@@ -46,6 +46,8 @@ public sealed class TemperatureSource : IMetricSource
             var readingOffset = view.ReadUInt32(32);
             var readingSize = view.ReadUInt32(36);
             var readingCount = view.ReadUInt32(40);
+            // Another version or a broken block: read nothing rather than wander through memory.
+            if (readingSize < 292 || readingCount > 10_000 || readingOffset + (long)readingSize * readingCount > view.Capacity) return null;
 
             double? cpu = null, gpu = null;
             for (var i = 0L; i < readingCount; i++)
@@ -59,7 +61,7 @@ public sealed class TemperatureSource : IMetricSource
             }
             return cpu is null && gpu is null ? null : (cpu, gpu);
         }
-        catch (Exception ex) when (ex is FileNotFoundException or UnauthorizedAccessException or IOException)
+        catch (Exception ex) when (ex is FileNotFoundException or UnauthorizedAccessException or IOException or ArgumentException)
         {
             return null;
         }

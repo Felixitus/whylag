@@ -2,6 +2,19 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+### Fixed
+
+- In a small window, labels on the overview and in the report were broken inside words, and the comparison line of
+  a session was cut off.
+- The incident list gives up width in a small window, so the report stays readable.
+
+### Changed
+
+- Incident files are about a third smaller: evidence is no longer stored twice, and the JSON is written without
+  indentation. Older files are read as before.
+
 ## [0.1.6] - 2026-11-14
 
 Result of a full code review.

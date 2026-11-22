@@ -580,3 +580,32 @@ public class ReviewFixTests
         Assert.Equal(["obs64"], s.IgnoredApps);
     }
 }
+
+public class StorageSizeTests
+{
+    [Fact]
+    public void Incident_files_are_compact_and_hold_each_evidence_once()
+    {
+        var store = new IncidentStore(Directory.CreateTempSubdirectory("whylag-test").FullName);
+        var incident = new TestData(120).Analyse();
+        store.Save(incident);
+
+        var text = File.ReadAllText(store.PathFor(incident.Id));
+        Assert.DoesNotContain('\n', text);
+        Assert.DoesNotContain("allEvidence", text);
+        var loaded = store.Load(incident.Id)!;
+        Assert.Equal(incident.AllEvidence.Count(), loaded.AllEvidence.Count());
+        Assert.Equal(incident.Ticks.Count, loaded.Ticks.Count);
+    }
+
+    [Fact]
+    public void Indented_files_of_older_versions_are_still_read()
+    {
+        var store = new IncidentStore(Directory.CreateTempSubdirectory("whylag-test").FullName);
+        var incident = new TestData(30).Analyse();
+        Directory.CreateDirectory(store.Directory);
+        File.WriteAllText(store.PathFor(incident.Id), System.Text.Json.JsonSerializer.Serialize(incident, Json.Options));
+        Assert.Equal(incident.Findings.Count, store.Load(incident.Id)!.Findings.Count);
+        Assert.Single(store.LoadSummaries());
+    }
+}

@@ -58,9 +58,23 @@ internal sealed class OverlayWindow : Window
     {
         if (App.Instance is not { IsExiting: false } app || app.Recorder?.LatestTick is not { } t)
         {
-            _text.Text = "WhyLag";
+            if (_preview is null) _text.Text = "WhyLag";
             return;
         }
+        Show(t);
+    }
+
+    private Tick? _preview;
+
+    /// <summary>Shows recorded values when no recorder runs (screenshots).</summary>
+    internal void ShowPreview(Tick tick)
+    {
+        _preview = tick;
+        Show(tick);
+    }
+
+    private void Show(Tick t)
+    {
         string V(string key, string format = "0") => t.Get(key) is { } v ? v.ToString(format, Culture) : "–";
         var lines = new List<string>();
         if (t.Get(MetricKeys.FramesFps) is not null)

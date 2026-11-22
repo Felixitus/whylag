@@ -2,7 +2,10 @@ using System.Text.Json;
 
 namespace WhyLag.Core;
 
-/// <summary>Stores each incident as a readable JSON file so users can inspect, share or delete it.</summary>
+/// <summary>
+/// Stores each incident as a plain JSON file so users can inspect, share or delete it. Written without indentation:
+/// incidents hold minutes of measurements, and indentation made the files about a third larger.
+/// </summary>
 public sealed class IncidentStore(string? directory = null)
 {
     public string Directory { get; } = directory ?? AppPaths.IncidentsDir;
@@ -20,7 +23,7 @@ public sealed class IncidentStore(string? directory = null)
         System.IO.Directory.CreateDirectory(Directory);
         var path = PathFor(incident.Id);
         var tmp = path + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(incident, Json.Options));
+        File.WriteAllText(tmp, JsonSerializer.Serialize(incident, Json.Compact));
         File.Move(tmp, path, overwrite: true);
     }
 

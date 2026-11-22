@@ -99,6 +99,14 @@ internal static class ScreenshotMode
         }
         settings.Close();
 
+        var overlay = new OverlayWindow { Left = -30000, Top = -30000 };
+        overlay.Show();
+        var frame = demo.Ticks.LastOrDefault(t => t.Get(MetricKeys.FramesFps) is not null) ?? demo.Ticks[^1];
+        overlay.ShowPreview(frame);
+        await Settle();
+        Save(overlay, Path.Combine(folder, "overlay.png"));
+        overlay.Close();
+
         var input = new InputDialog(Core.Localization.Loc.T("ui.marker.add"), Core.Localization.Loc.T("ui.marker.prompt"), MarkerStore.MaxTextLength)
         {
             WindowStartupLocation = WindowStartupLocation.Manual,

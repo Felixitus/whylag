@@ -165,15 +165,15 @@
                                     </StackPanel>
                                 </Border>
                                 <Border Grid.Column="2" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
-                                    <DockPanel Margin="18,12">
-                                        <local:BarChart x:Name="WeekChart" DockPanel.Dock="Right" Width="112" Height="44" Margin="12,0,0,0" VerticalAlignment="Bottom"
-                                                        AutomationProperties.Name="{local:Tr ui.today.weeklabel}"/>
-                                        <StackPanel>
-                                            <TextBlock Text="{local:Tr ui.today.weeklabel}" Style="{StaticResource Caption}"/>
-                                            <TextBlock x:Name="TodayWeek" Style="{StaticResource Metric}" Margin="0,2,0,0"/>
-                                            <TextBlock x:Name="TodayTrend" Style="{StaticResource Overline}" FontWeight="Normal" TextWrapping="Wrap" Visibility="Collapsed"/>
-                                        </StackPanel>
-                                    </DockPanel>
+                                    <StackPanel Margin="18,12">
+                                        <TextBlock Text="{local:Tr ui.today.weeklabel}" Style="{StaticResource Caption}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                        <DockPanel Margin="0,2,0,0">
+                                            <local:BarChart x:Name="WeekChart" DockPanel.Dock="Right" Width="96" MinWidth="60" Height="34" Margin="10,0,0,2" VerticalAlignment="Bottom"
+                                                            AutomationProperties.Name="{local:Tr ui.today.weeklabel}"/>
+                                            <TextBlock x:Name="TodayWeek" Style="{StaticResource Metric}" VerticalAlignment="Bottom"/>
+                                        </DockPanel>
+                                        <TextBlock x:Name="TodayTrend" Style="{StaticResource Overline}" FontWeight="Normal" TextWrapping="Wrap" Visibility="Collapsed"/>
+                                    </StackPanel>
                                 </Border>
                                 <Border Grid.Column="3" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
                                     <StackPanel Margin="18,12" VerticalAlignment="Center">
@@ -242,8 +242,9 @@
 
                 <!-- ───────── Incidents: list and report ───────── -->
                 <Grid x:Name="IncidentsView" Visibility="Collapsed">
+                    <!-- The list gives up width first, so the report stays readable in a small window. -->
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="320"/>
+                        <ColumnDefinition Width="0.36*" MinWidth="250" MaxWidth="340"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
@@ -373,11 +374,11 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0" Padding="16,11">
+                                                <Border BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0" Padding="14,11">
                                                     <StackPanel>
-                                                        <DockPanel>
+                                                        <DockPanel ToolTip="{Binding Label}">
                                                             <Ellipse Width="7" Height="7" Margin="0,0,7,0" Fill="{Binding Category, Converter={StaticResource CategoryBrush}}"/>
-                                                            <TextBlock Text="{Binding Label}" Style="{StaticResource Caption}"/>
+                                                            <TextBlock Text="{Binding Label}" Style="{StaticResource Caption}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                                         </DockPanel>
                                                         <TextBlock Margin="0,3,0,0" Typography.NumeralAlignment="Tabular">
                                                             <Run Text="{Binding Value, Mode=OneWay}" FontSize="22" FontWeight="SemiBold"/>
@@ -677,18 +678,23 @@
                                                         <ColumnDefinition Width="88"/>
                                                         <ColumnDefinition Width="96"/>
                                                     </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding Title}" Style="{StaticResource Body}" FontWeight="SemiBold"/>
                                                         <TextBlock Text="{Binding When}" Style="{StaticResource Caption}"/>
                                                         <TextBlock Text="{Binding Causes}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding VerdictVisibility}">
-                                                            <TextBlock Text="{Binding VerdictIcon}" Style="{StaticResource Icon}" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"
-                                                                       Foreground="{Binding VerdictBrush, Converter={StaticResource ResourceBrush}}"/>
-                                                            <TextBlock Text="{Binding Verdict}" Style="{StaticResource Caption}" FontWeight="SemiBold"
-                                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,10,0"/>
-                                                            <TextBlock Text="{Binding Usual}" Style="{StaticResource Caption}"/>
-                                                        </StackPanel>
                                                     </StackPanel>
+                                                    <!-- The comparison spans the whole row, so it stays on one line where it fits. -->
+                                                    <DockPanel Grid.Row="1" Grid.ColumnSpan="6" Margin="0,6,0,0" Visibility="{Binding VerdictVisibility}">
+                                                            <TextBlock DockPanel.Dock="Left" Text="{Binding VerdictIcon}" Style="{StaticResource Icon}" FontSize="11" Margin="0,2,6,0" VerticalAlignment="Top"
+                                                                       Foreground="{Binding VerdictBrush, Converter={StaticResource ResourceBrush}}"/>
+                                                            <TextBlock DockPanel.Dock="Left" Text="{Binding Verdict}" Style="{StaticResource Caption}" FontWeight="SemiBold" TextWrapping="NoWrap"
+                                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,10,0" VerticalAlignment="Top"/>
+                                                            <TextBlock Text="{Binding Usual}" Style="{StaticResource Caption}"/>
+                                                    </DockPanel>
                                                     <TextBlock Grid.Column="1" Text="{Binding Fps}" Style="{StaticResource Body}" TextAlignment="Right"/>
                                                     <TextBlock Grid.Column="2" Text="{Binding Low}" Style="{StaticResource Body}" TextAlignment="Right"/>
                                                     <TextBlock Grid.Column="3" Text="{Binding Hitches}" Style="{StaticResource Body}" TextAlignment="Right"/>

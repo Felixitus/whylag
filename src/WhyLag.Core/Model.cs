@@ -159,5 +159,7 @@ public sealed class Incident
     /// <summary>The user's own note, e.g. what they were doing or what the real cause turned out to be.</summary>
     public string? Note { get; set; }
 
+    /// <summary>Every evidence line of every finding. Not stored: it is already inside the findings.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public IEnumerable<Evidence> AllEvidence => Findings.SelectMany(f => f.Evidence);
 }

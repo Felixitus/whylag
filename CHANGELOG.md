@@ -2,7 +2,7 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
 
-## [Unreleased]
+## [0.1.7] - 2026-11-22
 
 ### Fixed
 
